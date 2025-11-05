@@ -212,7 +212,7 @@ const CardDefinitions = {
 
     raiseLegion(player, target, gameState) {
         player.popularSupport += 2;
-        gameState.state.romeStrength = (gameState.state.romeStrength || 100) * 1.10;
+        gameState.state.militaryStrength += 15;
 
         gameState.state.players.forEach(p => {
             p.effects.push({
@@ -223,7 +223,7 @@ const CardDefinitions = {
             });
         });
 
-        GameState.log(`${player.name} raised a legion! Popular support increased, Rome grows stronger.`);
+        GameState.log(`${player.name} raised a legion! Popular support increased, Rome grows stronger (+15 military).`);
     },
 
     hireMercenaries(player, target, gameState) {
@@ -494,9 +494,10 @@ const CardDefinitions = {
     },
 
     sacrificeToMars(player, target, gameState) {
-        // Simplified: Always choose popular support
+        // Boost popular support and military strength
         player.popularSupport += 3;
-        GameState.log(`${player.name} sacrificed to Mars! Gained popular support.`);
+        gameState.state.militaryStrength += 8;
+        GameState.log(`${player.name} sacrificed to Mars! Gained popular support and military strength.`);
     },
 
     divineFavor(player, target, gameState) {

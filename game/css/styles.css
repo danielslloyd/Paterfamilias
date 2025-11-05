@@ -101,10 +101,47 @@ body {
     font-size: 0.95em;
 }
 
-#family-info > div {
-    margin: 10px 0;
+#family-display {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#mother-info {
+    grid-column: 2;
+    grid-row: 1;
     padding: 10px;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(100, 149, 237, 0.3);
+    border: 2px solid #6495ED;
+    border-radius: 5px;
+}
+
+#paterfamilias-info {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 10px;
+    background-color: rgba(184, 134, 11, 0.3);
+    border: 2px solid #B8860B;
+    border-radius: 5px;
+}
+
+#wife-info {
+    grid-column: 3;
+    grid-row: 2;
+    padding: 10px;
+    background-color: rgba(219, 112, 147, 0.3);
+    border: 2px solid #DB7093;
+    border-radius: 5px;
+}
+
+#children-info {
+    grid-column: 1 / 4;
+    grid-row: 3;
+    padding: 10px;
+    background-color: rgba(144, 238, 144, 0.2);
+    border: 2px solid #90EE90;
     border-radius: 5px;
 }
 
@@ -217,31 +254,17 @@ section h2 {
     padding: 5px;
     border-radius: 3px;
     text-align: center;
-}
-
-.card-header.military {
     background-color: #8b0000;
     color: #ffd700;
+    position: relative;
 }
 
-.card-header.political {
-    background-color: #4b0082;
-    color: #fff;
-}
-
-.card-header.intrigue {
-    background-color: #2f4f2f;
-    color: #fff;
-}
-
-.card-header.economic {
-    background-color: #daa520;
-    color: #000;
-}
-
-.card-header.religious {
-    background-color: #4682b4;
-    color: #fff;
+.card-type-icon {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 1.5em;
+    opacity: 0.9;
 }
 
 .card-type {
@@ -329,13 +352,52 @@ section h2 {
     border-left: 3px solid #8b0000;
 }
 
-.province {
+#military-info {
     background-color: rgba(0, 0, 0, 0.3);
     padding: 10px;
-    margin-bottom: 10px;
+    border-radius: 5px;
+    border-left: 3px solid #8b0000;
+    font-size: 0.9em;
+    margin-bottom: 15px;
+}
+
+.military-stable {
+    color: #90EE90;
+}
+
+.military-at-risk {
+    color: #FF6B6B;
+}
+
+.province {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    margin-bottom: 8px;
     border-radius: 5px;
     border-left: 3px solid #daa520;
-    font-size: 0.9em;
+    font-size: 0.85em;
+}
+
+.province.conquered {
+    border-left-color: #90EE90;
+    background-color: rgba(144, 238, 144, 0.1);
+}
+
+.province.unconquered {
+    border-left-color: #777;
+    background-color: rgba(100, 100, 100, 0.1);
+    opacity: 0.7;
+}
+
+.province-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.estate-distribution {
+    font-size: 0.8em;
+    margin-top: 3px;
+    padding-left: 10px;
 }
 
 /* Game Log */

@@ -16,7 +16,9 @@ const GameState = {
             count: 0
         },
         gameLog: [],
-        phase: 'setup' // setup, income, action, card, imperial, end
+        phase: 'setup', // setup, income, action, card, imperial, end
+        militaryStrength: 100, // Empire-wide military strength
+        militaryRequirement: 10 // Base military requirement per province
     },
 
     // Initialize game state
@@ -120,25 +122,50 @@ const GameState = {
 
     // Initialize provinces
     initializeProvinces() {
-        this.state.provinces = [
-            {
-                id: 0,
-                name: 'Italia',
-                estates: [],
-                conquered: true
-            }
+        // Roman provinces in roughly historical order of conquest
+        const provinceData = [
+            { name: 'Italia', estateCount: this.state.players.length * 5, conquered: true, year: 0 },
+            { name: 'Sicilia', estateCount: 12, conquered: false, year: 241 },
+            { name: 'Sardinia et Corsica', estateCount: 8, conquered: false, year: 238 },
+            { name: 'Hispania Citerior', estateCount: 10, conquered: false, year: 197 },
+            { name: 'Hispania Ulterior', estateCount: 14, conquered: false, year: 197 },
+            { name: 'Macedonia', estateCount: 16, conquered: false, year: 146 },
+            { name: 'Africa', estateCount: 18, conquered: false, year: 146 },
+            { name: 'Asia', estateCount: 20, conquered: false, year: 133 },
+            { name: 'Gallia Narbonensis', estateCount: 12, conquered: false, year: 121 },
+            { name: 'Cilicia', estateCount: 10, conquered: false, year: 102 },
+            { name: 'Creta et Cyrenaica', estateCount: 14, conquered: false, year: 74 },
+            { name: 'Bithynia et Pontus', estateCount: 16, conquered: false, year: 74 },
+            { name: 'Syria', estateCount: 18, conquered: false, year: 64 },
+            { name: 'Gallia Comata', estateCount: 22, conquered: false, year: 50 },
+            { name: 'Aegyptus', estateCount: 24, conquered: false, year: 30 },
+            { name: 'Britannia', estateCount: 14, conquered: false, year: 43 },
+            { name: 'Dacia', estateCount: 16, conquered: false, year: 106 }
         ];
 
-        // Create estates for Italia (5 per player)
-        const estateCount = this.state.players.length * 5;
-        for (let i = 0; i < estateCount; i++) {
-            this.state.provinces[0].estates.push({
-                id: i,
-                provinceId: 0,
-                ownerId: null,
-                yield: 2 // base gold per turn
+        this.state.provinces = [];
+        let estateId = 0;
+
+        provinceData.forEach((prov, idx) => {
+            const estates = [];
+            for (let i = 0; i < prov.estateCount; i++) {
+                estates.push({
+                    id: estateId++,
+                    provinceId: idx,
+                    ownerId: null,
+                    yield: 2 // base gold per turn
+                });
+            }
+
+            this.state.provinces.push({
+                id: idx,
+                name: prov.name,
+                estates: estates,
+                conquered: prov.conquered,
+                year: prov.year,
+                conquestTurn: prov.conquered ? 0 : null
             });
-        }
+        });
     },
 
     // Distribute starting estates
@@ -299,5 +326,88 @@ const GameState = {
             console.error('Failed to load game:', e);
         }
         return false;
+    },
+
+    // Calculate required military strength
+    getRequiredMilitaryStrength() {
+        const conqueredCount = this.state.provinces.filter(p => p.conquered).length;
+        return conqueredCount * this.state.militaryRequirement;
+    },
+
+    // Check for revolts
+    checkForRevolts() {
+        const required = this.getRequiredMilitaryStrength();
+        const current = this.state.militaryStrength;
+
+        if (current < required) {
+            // Military is too weak - revolt in most recently conquered province
+            const conqueredProvinces = this.state.provinces
+                .filter(p => p.conquered && p.conquestTurn !== null)
+                .sort((a, b) => b.conquestTurn - a.conquestTurn);
+
+            if (conqueredProvinces.length > 1) { // Don't lose Italia
+                const revoltProvince = conqueredProvinces[0];
+                revoltProvince.conquered = false;
+                revoltProvince.conquestTurn = null;
+
+                // Free all estates in revolted province
+                revoltProvince.estates.forEach(estate => {
+                    if (estate.ownerId !== null) {
+                        const owner = this.getPlayer(estate.ownerId);
+                        owner.estates = owner.estates.filter(e => e.id !== estate.id);
+                        estate.ownerId = null;
+                    }
+                });
+
+                this.log(`⚠️ REVOLT! ${revoltProvince.name} has broken free from Roman control due to insufficient military strength!`);
+                return true;
+            }
+        }
+        return false;
+    },
+
+    // Attempt to conquer next province
+    attemptConquest() {
+        const unconquered = this.state.provinces.filter(p => !p.conquered);
+
+        if (unconquered.length === 0) {
+            this.log('All provinces have been conquered!');
+            return false;
+        }
+
+        const nextProvince = unconquered[0];
+        const required = this.getRequiredMilitaryStrength() + 20; // Need extra strength for conquest
+
+        if (this.state.militaryStrength >= required) {
+            // Success!
+            nextProvince.conquered = true;
+            nextProvince.conquestTurn = this.state.turn;
+            this.state.militaryStrength -= 10; // Conquest costs military strength
+
+            this.log(`🏛️ CONQUEST! ${nextProvince.name} has been absorbed into the Roman Empire!`);
+            this.log(`${nextProvince.estates.length} new estates are now available for distribution.`);
+            return true;
+        } else {
+            this.log(`Failed to conquer ${nextProvince.name}. Need ${required} military strength (current: ${this.state.militaryStrength})`);
+            return false;
+        }
+    },
+
+    // Get military status summary
+    getMilitaryStatus() {
+        const required = this.getRequiredMilitaryStrength();
+        const current = this.state.militaryStrength;
+        const unconquered = this.state.provinces.filter(p => !p.conquered);
+        const nextConquestRequired = required + 20;
+
+        return {
+            current: current,
+            required: required,
+            nextConquestRequired: nextConquestRequired,
+            surplus: current - required,
+            status: current >= required ? 'Stable' : 'At Risk',
+            canConquer: current >= nextConquestRequired && unconquered.length > 0,
+            nextProvince: unconquered.length > 0 ? unconquered[0].name : null
+        };
     }
 };
