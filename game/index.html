@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roman Dynasty Game</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Header -->
+        <header id="game-header">
+            <h1>Roman Dynasty Game</h1>
+            <div id="game-info">
+                <span id="turn-display">Turn: 1</span>
+                <span id="counter-display">Counter: 1 (100% Popularity / 0% Virtue)</span>
+                <span id="emperor-display">Republic</span>
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <div id="game-main">
+            <!-- Current Player Panel -->
+            <aside id="player-panel">
+                <h2 id="current-player-name">Loading...</h2>
+
+                <!-- Resources -->
+                <div id="resources">
+                    <div class="resource">
+                        <span class="resource-label">Gold:</span>
+                        <span id="player-gold">0</span>
+                    </div>
+                    <div class="resource">
+                        <span class="resource-label">Popular Support:</span>
+                        <span id="player-popularity">0</span>
+                    </div>
+                    <div class="resource">
+                        <span class="resource-label">Auctoritas:</span>
+                        <span id="player-virtue">0</span>
+                    </div>
+                    <div class="resource">
+                        <span class="resource-label">Estates:</span>
+                        <span id="player-estates">0</span>
+                    </div>
+                </div>
+
+                <!-- Family -->
+                <div id="family-info">
+                    <h3>Family</h3>
+                    <div id="paterfamilias-info"></div>
+                    <div id="wife-info"></div>
+                    <div id="mother-info"></div>
+                    <div id="children-info"></div>
+                </div>
+
+                <!-- Dynasty Progress -->
+                <div id="dynasty-progress">
+                    <h3>Dynasty Progress</h3>
+                    <div id="succession-count"></div>
+                </div>
+            </aside>
+
+            <!-- Center Content -->
+            <main id="game-content">
+                <!-- Action Phase -->
+                <section id="action-section">
+                    <h2>Actions</h2>
+                    <div id="action-buttons">
+                        <button class="action-btn" data-action="contribute-military">Contribute to Military</button>
+                        <button class="action-btn" data-action="economic-development">Economic Development</button>
+                        <button class="action-btn" data-action="political-maneuvering">Political Maneuvering</button>
+                        <button class="action-btn" data-action="marriage-negotiation">Marriage Negotiation</button>
+                    </div>
+                </section>
+
+                <!-- Card Section -->
+                <section id="card-section">
+                    <h2>Your Hand</h2>
+                    <div id="hand-cards"></div>
+                    <div id="card-controls">
+                        <button id="btn-play-card" disabled>Play Card</button>
+                        <button id="btn-discard-card" disabled>Discard Card</button>
+                    </div>
+                </section>
+
+                <!-- Imperial Actions (Emperor Only) -->
+                <section id="imperial-section" style="display: none;">
+                    <h2>Imperial Actions</h2>
+                    <div id="imperial-buttons">
+                        <button class="imperial-btn" data-action="set-tax-rate">Set Tax Rate</button>
+                        <button class="imperial-btn" data-action="launch-campaign">Launch Campaign</button>
+                        <button class="imperial-btn" data-action="distribute-estates">Distribute Estates</button>
+                        <button class="imperial-btn" data-action="influence-counter">Influence Counter</button>
+                    </div>
+                </section>
+
+                <!-- Turn Control -->
+                <section id="turn-control">
+                    <button id="btn-end-turn" class="primary-btn">End Turn</button>
+                </section>
+            </main>
+
+            <!-- Right Sidebar -->
+            <aside id="right-sidebar">
+                <!-- Other Players -->
+                <section id="other-players">
+                    <h3>Other Players</h3>
+                    <div id="players-list"></div>
+                </section>
+
+                <!-- Provinces -->
+                <section id="provinces-section">
+                    <h3>Provinces</h3>
+                    <div id="provinces-list"></div>
+                </section>
+            </aside>
+        </div>
+
+        <!-- Game Log -->
+        <footer id="game-log">
+            <h3>Game Log</h3>
+            <div id="log-messages"></div>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" style="display: none;">
+        <div id="modal-content"></div>
+    </div>
+
+    <!-- Game Setup Modal -->
+    <div id="setup-modal" class="modal">
+        <div class="modal-dialog">
+            <h2>New Game Setup</h2>
+            <div class="form-group">
+                <label for="player-count">Number of Players:</label>
+                <select id="player-count">
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                </select>
+            </div>
+            <div id="player-names-container"></div>
+            <button id="btn-start-game" class="primary-btn">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/game-state.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/card.js"></script>
+    <script src="js/actions.js"></script>
+    <script src="js/succession.js"></script>
+    <script src="js/marriage.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
