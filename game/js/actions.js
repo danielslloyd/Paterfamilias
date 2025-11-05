@@ -99,9 +99,10 @@ const Actions = {
         player.gold -= cost;
         player.auctoritas += 2;
         player.popularSupport += 1;
+        GameState.state.militaryStrength += 5;
         player.actionTaken = true;
 
-        GameState.log(`${player.name} contributed to Rome's military! +2 Auctoritas, +1 Popular Support`);
+        GameState.log(`${player.name} contributed to Rome's military! +2 Auctoritas, +1 Popular Support, +5 Military Strength`);
         return true;
     },
 
@@ -279,44 +280,23 @@ const Actions = {
         const success = Math.random() > failureChance;
 
         if (success) {
-            // Create a new province
-            const provinceNames = ['Gaul', 'Egypt', 'Hispania', 'Germania', 'Britannia', 'Syria', 'Africa'];
-            const unusedNames = provinceNames.filter(name =>
-                !gameState.state.provinces.some(p => p.name === name)
-            );
+            // Attempt to conquer the next province
+            const conquered = GameState.attemptConquest();
 
-            if (unusedNames.length > 0) {
-                const newProvinceName = unusedNames[0];
-                const estateCount = 10 + Math.floor(Math.random() * 5);
-
-                const newProvince = {
-                    id: gameState.state.provinces.length,
-                    name: newProvinceName,
-                    estates: [],
-                    conquered: true
-                };
-
-                for (let i = 0; i < estateCount; i++) {
-                    newProvince.estates.push({
-                        id: Date.now() + i,
-                        provinceId: newProvince.id,
-                        ownerId: null,
-                        yield: 2
-                    });
-                }
-
-                gameState.state.provinces.push(newProvince);
+            if (conquered) {
                 emperor.popularSupport += 5;
-
-                GameState.log(`Campaign successful! ${newProvinceName} conquered with ${estateCount} estates. Emperor ${emperor.name} gains +5 Popular Support!`);
+                GameState.log(`Emperor ${emperor.name} gains +5 Popular Support!`);
                 GameState.log(`Emperor must now distribute the new estates.`);
             } else {
-                GameState.log(`Campaign successful but no more provinces to conquer!`);
-                emperor.popularSupport += 3;
+                // Campaign successful but couldn't conquer (insufficient military)
+                emperor.popularSupport += 2;
+                gameState.state.militaryStrength += 5;
+                GameState.log(`Campaign successful! Rome's military strengthened but no new territory conquered.`);
             }
         } else {
             emperor.popularSupport -= 5;
-            GameState.log(`Campaign failed! Emperor ${emperor.name} loses 5 Popular Support and the gold invested.`);
+            gameState.state.militaryStrength -= 5;
+            GameState.log(`Campaign failed! Emperor ${emperor.name} loses 5 Popular Support, -5 Military Strength.`);
         }
 
         return success;
@@ -407,6 +387,14 @@ const Actions = {
 
         // Update effects
         Player.updateEffects(player);
+
+        // Military decay (1 point per turn if we're the last player of the round)
+        if (gameState.state.currentPlayerIndex === gameState.state.players.length - 1) {
+            gameState.state.militaryStrength = Math.max(0, gameState.state.militaryStrength - 1);
+
+            // Check for revolts due to weak military
+            GameState.checkForRevolts();
+        }
 
         // Check if player can become first Emperor
         if (gameState.state.emperorId === null && GameState.checkImperialThreshold(player.auctoritas)) {

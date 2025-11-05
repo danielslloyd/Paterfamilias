@@ -181,6 +181,7 @@ const UI = {
         this.renderActionButtons();
         this.renderHand();
         this.renderImperialSection();
+        this.renderMilitaryStatus();
         this.renderOtherPlayers();
         this.renderProvinces();
         this.renderGameLog();
@@ -293,8 +294,17 @@ const UI = {
                 cardDiv.classList.add('unaffordable');
             }
 
+            const cardIcons = {
+                military: '⚔️',
+                political: '🏛️',
+                intrigue: '🗡️',
+                economic: '💰',
+                religious: '⛪'
+            };
+
             cardDiv.innerHTML = `
-                <div class="card-header ${card.type}">
+                <div class="card-header">
+                    <span class="card-type-icon">${cardIcons[card.type] || '📜'}</span>
                     <strong>${card.name}</strong>
                 </div>
                 <div class="card-type">${card.type.charAt(0).toUpperCase() + card.type.slice(1)}</div>
@@ -339,6 +349,33 @@ const UI = {
         }
     },
 
+    // Render military status
+    renderMilitaryStatus() {
+        const militaryInfo = document.getElementById('military-info');
+        const status = GameState.getMilitaryStatus();
+
+        const statusClass = status.status === 'Stable' ? 'military-stable' : 'military-at-risk';
+
+        let html = `
+            <div><strong>Current:</strong> ${status.current}</div>
+            <div><strong>Required:</strong> ${status.required}</div>
+            <div><strong>Status:</strong> <span class="${statusClass}">${status.status}</span></div>
+        `;
+
+        if (status.nextProvince) {
+            html += `
+                <hr style="border-color: #555; margin: 8px 0;">
+                <div style="font-size: 0.85em;">
+                    <strong>Next Province:</strong> ${status.nextProvince}<br>
+                    <strong>Required:</strong> ${status.nextConquestRequired}
+                    ${status.canConquer ? '<br><span style="color: #90EE90;">✓ Can conquer!</span>' : ''}
+                </div>
+            `;
+        }
+
+        militaryInfo.innerHTML = html;
+    },
+
     // Render other players
     renderOtherPlayers() {
         const currentPlayer = GameState.getCurrentPlayer();
@@ -369,27 +406,36 @@ const UI = {
 
         GameState.state.provinces.forEach(province => {
             const provinceDiv = document.createElement('div');
-            provinceDiv.className = 'province';
+            provinceDiv.className = province.conquered ? 'province conquered' : 'province unconquered';
 
-            const estateBreakdown = {};
-            province.estates.forEach(estate => {
-                if (estate.ownerId !== null) {
-                    const owner = GameState.getPlayer(estate.ownerId);
-                    estateBreakdown[owner.name] = (estateBreakdown[owner.name] || 0) + 1;
-                } else {
-                    estateBreakdown['Unowned'] = (estateBreakdown['Unowned'] || 0) + 1;
-                }
-            });
+            if (province.conquered) {
+                const estateBreakdown = {};
+                province.estates.forEach(estate => {
+                    if (estate.ownerId !== null) {
+                        const owner = GameState.getPlayer(estate.ownerId);
+                        estateBreakdown[owner.name] = (estateBreakdown[owner.name] || 0) + 1;
+                    } else {
+                        estateBreakdown['Unowned'] = (estateBreakdown['Unowned'] || 0) + 1;
+                    }
+                });
 
-            let breakdownHTML = '';
-            Object.keys(estateBreakdown).forEach(ownerName => {
-                breakdownHTML += `<br>${ownerName}: ${estateBreakdown[ownerName]}`;
-            });
+                let breakdownHTML = '';
+                Object.keys(estateBreakdown).forEach(ownerName => {
+                    const count = estateBreakdown[ownerName];
+                    breakdownHTML += `<div>${ownerName}: ${count}</div>`;
+                });
 
-            provinceDiv.innerHTML = `
-                <strong>${province.name}</strong> (${province.estates.length} estates)
-                ${breakdownHTML}
-            `;
+                provinceDiv.innerHTML = `
+                    <div class="province-header">✓ ${province.name}</div>
+                    <div style="font-size: 0.8em; color: #aaa;">${province.estates.length} estates</div>
+                    <div class="estate-distribution">${breakdownHTML}</div>
+                `;
+            } else {
+                provinceDiv.innerHTML = `
+                    <div class="province-header">○ ${province.name}</div>
+                    <div style="font-size: 0.8em; color: #888;">${province.estates.length} estates (unconquered)</div>
+                `;
+            }
 
             provincesList.appendChild(provinceDiv);
         });
