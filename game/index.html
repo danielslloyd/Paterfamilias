@@ -13,9 +13,20 @@
             <h1>Roman Dynasty Game</h1>
             <div id="game-info">
                 <span id="turn-display">Turn: 1</span>
-                <span id="counter-display">Counter: 1 (100% Popularity / 0% Virtue)</span>
                 <span id="emperor-display">Republic</span>
             </div>
+            <!-- Virtue/Popularity Balance Bar -->
+            <div id="balance-bar-container">
+                <div class="balance-labels">
+                    <span class="balance-label-left">Popularity</span>
+                    <span class="balance-label-right">Virtue</span>
+                </div>
+                <div id="balance-bar">
+                    <div id="balance-marker"></div>
+                </div>
+            </div>
+            <!-- Players Display -->
+            <div id="players-top-bar"></div>
         </header>
 
         <!-- Main Game Area -->
@@ -80,8 +91,8 @@
                     <h2>Your Hand</h2>
                     <div id="hand-cards"></div>
                     <div id="card-controls">
-                        <button id="btn-play-card" disabled>Play Card</button>
-                        <button id="btn-discard-card" disabled>Discard Card</button>
+                        <button id="btn-play-card" disabled>1. Play Card</button>
+                        <button id="btn-discard-card" disabled>2. Discard Card</button>
                     </div>
                 </section>
 
@@ -108,12 +119,6 @@
                 <section id="military-status">
                     <h3>Military Status</h3>
                     <div id="military-info"></div>
-                </section>
-
-                <!-- Other Players -->
-                <section id="other-players">
-                    <h3>Other Players</h3>
-                    <div id="players-list"></div>
                 </section>
 
                 <!-- Provinces -->

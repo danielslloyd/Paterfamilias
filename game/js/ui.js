@@ -163,6 +163,41 @@ const UI = {
     startTurn() {
         const player = GameState.getCurrentPlayer();
 
+        // Check if player needs a child (temporary mechanic)
+        const hasSon = player.children.some(c => c.gender === 'male');
+        const hasDaughter = player.children.some(c => c.gender === 'female');
+
+        if (!hasSon || !hasDaughter) {
+            // Determine which gender is needed
+            const neededGender = !hasSon ? 'male' : 'female';
+            const name = GameState.generateName(neededGender);
+
+            const femaleTraits = [
+                'Financial Acumen', 'Political Savvy', 'Beloved by People',
+                'Fertile', 'Pious', 'Influential', 'Scheming'
+            ];
+            const maleTraits = [
+                '+1 Base Auctoritas',
+                '+1 Popular Support',
+                '+10% Estate Income',
+                'Military Prowess'
+            ];
+
+            const traits = neededGender === 'female'
+                ? GameState.selectRandomTraits(femaleTraits, Math.random() < 0.3 ? 2 : 1)
+                : GameState.selectRandomTraits(maleTraits, Math.random() < 0.3 ? 2 : 1);
+
+            const child = {
+                name: name,
+                age: 0,
+                gender: neededGender,
+                traits: traits
+            };
+
+            player.children.push(child);
+            GameState.log(`${player.name}: A ${neededGender} child, ${name}, is born! (Ensuring family succession)`);
+        }
+
         // Process income
         Actions.processIncome(player);
         Actions.processTaxes(player, GameState);
@@ -177,12 +212,13 @@ const UI = {
     // Main render function
     render() {
         this.renderHeader();
+        this.renderBalanceBar();
+        this.renderPlayersTopBar();
         this.renderPlayerPanel();
         this.renderActionButtons();
         this.renderHand();
         this.renderImperialSection();
         this.renderMilitaryStatus();
-        this.renderOtherPlayers();
         this.renderProvinces();
         this.renderGameLog();
         this.updateCardControls();
@@ -192,13 +228,77 @@ const UI = {
     renderHeader() {
         document.getElementById('turn-display').textContent = `Turn: ${GameState.state.turn}`;
 
-        const weights = GameState.getCounterWeights();
-        document.getElementById('counter-display').textContent =
-            `Counter: ${GameState.state.counter} (${Math.floor(weights.popularity * 100)}% Popularity / ${Math.floor(weights.virtue * 100)}% Virtue)`;
-
         const emperor = GameState.getEmperor();
         document.getElementById('emperor-display').textContent =
             emperor ? `Emperor: ${emperor.name}` : 'Republic';
+    },
+
+    // Render balance bar
+    renderBalanceBar() {
+        const counter = GameState.state.counter;
+        const percentage = counter; // counter is 1-100
+
+        const marker = document.getElementById('balance-marker');
+        // Position marker (subtract half its width for centering)
+        marker.style.left = `calc(${percentage}% - 2px)`;
+    },
+
+    // Render players top bar
+    renderPlayersTopBar() {
+        const currentPlayer = GameState.getCurrentPlayer();
+        const topBar = document.getElementById('players-top-bar');
+        topBar.innerHTML = '';
+
+        GameState.state.players.forEach(player => {
+            const playerCard = document.createElement('div');
+            playerCard.className = 'player-card';
+
+            if (player.id === currentPlayer.id) {
+                playerCard.classList.add('current-turn');
+            }
+
+            const isEmperor = GameState.state.emperorId === player.id;
+            if (isEmperor) {
+                playerCard.classList.add('is-emperor');
+            }
+
+            // Determine wife's family
+            let wifeFamily = null;
+            if (player.wife && player.wife.fromFamily !== undefined) {
+                wifeFamily = GameState.state.players[player.wife.fromFamily];
+            }
+
+            // Build children icons
+            let childrenHTML = '';
+            if (player.id !== currentPlayer.id) {
+                // For non-current players, show compact child icons
+                const sons = player.children.filter(c => c.gender === 'male');
+                const daughters = player.children.filter(c => c.gender === 'female');
+
+                if (sons.length > 0 || daughters.length > 0) {
+                    childrenHTML = '<div class="children-icons">';
+                    sons.forEach(() => childrenHTML += '<span class="child-icon">♂</span>');
+                    daughters.forEach(() => childrenHTML += '<span class="child-icon">♀</span>');
+                    childrenHTML += '</div>';
+                }
+            }
+
+            playerCard.innerHTML = `
+                <div class="player-card-header">
+                    <span>${player.name}${isEmperor ? ' 👑' : ''}</span>
+                </div>
+                <div class="player-card-resources">
+                    G:${player.gold} | S:${player.popularSupport} | V:${player.auctoritas} | E:${player.estates.length}
+                </div>
+                <div class="player-card-family">
+                    ${player.paterfamilias.name} (${player.paterfamilias.age})
+                    ${wifeFamily ? `<span class="marriage-indicator">⚭ ${wifeFamily.name}</span>` : ''}
+                    ${childrenHTML}
+                </div>
+            `;
+
+            topBar.appendChild(playerCard);
+        });
     },
 
     // Render player panel
@@ -332,8 +432,14 @@ const UI = {
         const playBtn = document.getElementById('btn-play-card');
         const discardBtn = document.getElementById('btn-discard-card');
 
+        // Play button is enabled if card is selected and not yet played
         playBtn.disabled = this.selectedCardIndex === -1 || player.cardPlayed;
-        discardBtn.disabled = this.selectedCardIndex === -1 || player.cardDiscarded;
+
+        // Discard button is only enabled if:
+        // 1. A card is selected
+        // 2. Card has not been discarded yet
+        // 3. A card has already been played this turn (enforcing play>discard order)
+        discardBtn.disabled = this.selectedCardIndex === -1 || player.cardDiscarded || !player.cardPlayed;
     },
 
     // Render imperial section
@@ -376,28 +482,6 @@ const UI = {
         militaryInfo.innerHTML = html;
     },
 
-    // Render other players
-    renderOtherPlayers() {
-        const currentPlayer = GameState.getCurrentPlayer();
-        const playersList = document.getElementById('players-list');
-        playersList.innerHTML = '';
-
-        GameState.state.players.forEach(player => {
-            if (player.id !== currentPlayer.id) {
-                const playerDiv = document.createElement('div');
-                playerDiv.className = 'other-player';
-
-                const isEmperor = GameState.state.emperorId === player.id;
-
-                playerDiv.innerHTML = `
-                    <strong>${player.name}${isEmperor ? ' 👑' : ''}</strong>
-                    <br>G:${player.gold} | S:${player.popularSupport} | V:${player.auctoritas} | E:${player.estates.length}
-                `;
-
-                playersList.appendChild(playerDiv);
-            }
-        });
-    },
 
     // Render provinces
     renderProvinces() {

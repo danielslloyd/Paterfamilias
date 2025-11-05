@@ -49,6 +49,110 @@ body {
     border-radius: 5px;
 }
 
+/* Balance Bar */
+#balance-bar-container {
+    margin: 15px 0 10px 0;
+}
+
+.balance-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    color: #ffd700;
+}
+
+#balance-bar {
+    position: relative;
+    height: 20px;
+    background: linear-gradient(to right, #4169E1 0%, #4169E1 50%, #8B4513 50%, #8B4513 100%);
+    border-radius: 10px;
+    border: 2px solid #ffd700;
+    overflow: visible;
+}
+
+#balance-marker {
+    position: absolute;
+    top: -8px;
+    width: 4px;
+    height: 36px;
+    background-color: #ffd700;
+    box-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700;
+    border-radius: 2px;
+    transition: left 0.5s ease;
+}
+
+/* Players Top Bar */
+#players-top-bar {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.player-card {
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 2px solid #8b0000;
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 200px;
+    transition: all 0.3s ease;
+}
+
+.player-card.current-turn {
+    border-color: #ffd700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    transform: scale(1.05);
+}
+
+.player-card.is-emperor {
+    border-color: #9370DB;
+    box-shadow: 0 0 10px rgba(147, 112, 219, 0.5);
+}
+
+.player-card-header {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #ffd700;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-card-resources {
+    font-size: 0.85em;
+    margin: 5px 0;
+    color: #f4e8d0;
+}
+
+.player-card-family {
+    font-size: 0.75em;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(139, 0, 0, 0.5);
+}
+
+.marriage-indicator {
+    display: inline-block;
+    font-size: 0.7em;
+    background-color: rgba(219, 112, 147, 0.3);
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+}
+
+.children-icons {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 5px;
+}
+
+.child-icon {
+    font-size: 0.9em;
+}
+
 /* Main Layout */
 #game-main {
     display: grid;
