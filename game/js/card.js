@@ -399,8 +399,8 @@ const CardDefinitions = {
         }
 
         // Check if player has daughters
-        const daughters = player.children.filter(c => c.gender === 'female' && c.age >= 14);
-        const sons = target.children.filter(c => c.gender === 'male' && c.age >= 14);
+        const daughters = player.children.filter(c => c.gender === 'female' && c.age >= GameConfig.minimumMarriageAge);
+        const sons = target.children.filter(c => c.gender === 'male' && c.age >= GameConfig.minimumMarriageAge);
 
         if (daughters.length === 0 || sons.length === 0) {
             GameState.log(`${player.name} cannot forge alliance - no eligible children!`);

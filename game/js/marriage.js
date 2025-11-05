@@ -17,6 +17,11 @@ const Marriage = {
             return { valid: false, reason: 'Already married to this family' };
         }
 
+        // Player must be unmarried to marry
+        if (player.wife) {
+            return { valid: false, reason: 'Already married' };
+        }
+
         return { valid: true };
     },
 
@@ -24,12 +29,17 @@ const Marriage = {
     getEligibleFamilies(player, gameState) {
         const eligible = [];
 
+        // Player must be unmarried
+        if (player.wife) {
+            return eligible;
+        }
+
         gameState.state.players.forEach(targetPlayer => {
             const validation = this.isValidMarriage(player, targetPlayer);
             if (validation.valid) {
-                // Get available daughters
+                // Get available daughters (unmarried daughters of marriageable age)
                 const daughters = targetPlayer.children.filter(c =>
-                    c.gender === 'female' && c.age >= 14
+                    c.gender === 'female' && c.age >= GameConfig.minimumMarriageAge
                 );
 
                 if (daughters.length > 0) {
@@ -52,7 +62,7 @@ const Marriage = {
             return false;
         }
 
-        const daughters = targetFamily.children.filter(c => c.gender === 'female' && c.age >= 14);
+        const daughters = targetFamily.children.filter(c => c.gender === 'female' && c.age >= GameConfig.minimumMarriageAge);
 
         if (daughterIndex < 0 || daughterIndex >= daughters.length) {
             GameState.log(`Invalid daughter selection`);

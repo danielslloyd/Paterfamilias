@@ -71,7 +71,7 @@ const Succession = {
         GameState.log('========================================');
         GameState.log(`🏛️ GAME OVER - ${winner.name.toUpperCase()} WINS! 🏛️`);
         GameState.log('========================================');
-        GameState.log(`${winner.name} has established a dynasty with 4 successive emperors!`);
+        GameState.log(`${winner.name} has established a dynasty with ${GameConfig.dynastyWinThreshold} successive emperors!`);
         GameState.log(`The ${winner.name} family will rule Rome for generations to come.`);
         GameState.log('');
 
@@ -98,7 +98,7 @@ const Succession = {
             return false;
         }
 
-        const cost = 20;
+        const cost = GameConfig.coupCost;
         if (plotter.gold < cost) {
             GameState.log(`${plotter.name} cannot afford to launch a coup (need ${cost} gold)`);
             return false;
@@ -111,7 +111,7 @@ const Succession = {
 
         // Stage 1: Does Emperor survive?
         const emperorDefense = emperor.popularSupport + (emperor.gold / 10);
-        const plotterOffense = plotter.auctoritas + (plotter.gold / 10) + 20; // Coup bonus
+        const plotterOffense = plotter.auctoritas + (plotter.gold / 10) + GameConfig.coupBonus;
 
         const emperorSurvives = emperorDefense > plotterOffense;
 
@@ -123,10 +123,10 @@ const Succession = {
             // Plotter's paterfamilias dies
             Player.handleDeath(plotter, gameState);
 
-            plotter.gold = Math.max(0, plotter.gold - 10);
-            plotter.auctoritas = Math.max(0, plotter.auctoritas - 5);
+            plotter.gold = Math.max(0, plotter.gold - GameConfig.coupFailurePenalty.gold);
+            plotter.auctoritas = Math.max(0, plotter.auctoritas - GameConfig.coupFailurePenalty.auctoritas);
 
-            emperor.popularSupport += 3; // Bonus for surviving coup
+            emperor.popularSupport += GameConfig.coupSurvivalPopularSupportBonus;
 
             GameState.log('=== COUP FAILED ===');
             return false;
@@ -147,7 +147,7 @@ const Succession = {
 
     // Check if any player is close to winning
     checkDynastyProgress(gameState) {
-        if (gameState.state.dynastyCounter.count >= 3) {
+        if (gameState.state.dynastyCounter.count >= GameConfig.dynastyWinThreshold - 1) {
             const leadingFamily = GameState.getPlayer(gameState.state.dynastyCounter.familyId);
             GameState.log(`⚠️ WARNING: ${leadingFamily.name} has ${gameState.state.dynastyCounter.count} successive emperors! One more to win!`);
         }

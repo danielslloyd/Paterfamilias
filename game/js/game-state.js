@@ -17,21 +17,21 @@ const GameState = {
         },
         gameLog: [],
         phase: 'setup', // setup, income, action, card, imperial, end
-        militaryStrength: 100, // Empire-wide military strength
-        militaryRequirement: 10 // Base military requirement per province
+        militaryStrength: 100 // Empire-wide military strength - will be set by init()
     },
 
     // Initialize game state
     init(playerCount, playerNames) {
         this.state.turn = 1;
-        this.state.counter = 1;
+        this.state.counter = GameConfig.initialCounter;
         this.state.emperorId = null;
-        this.state.taxRate = 0.10;
+        this.state.taxRate = GameConfig.defaultTaxRate;
         this.state.players = [];
         this.state.currentPlayerIndex = 0;
         this.state.dynastyCounter = { familyId: null, count: 0 };
         this.state.gameLog = [];
         this.state.phase = 'income';
+        this.state.militaryStrength = GameConfig.initialMilitaryStrength;
 
         // Create players
         for (let i = 0; i < playerCount; i++) {
@@ -82,35 +82,26 @@ const GameState = {
             }
             const motherFamily = possibleMotherFamilies[Math.floor(Math.random() * possibleMotherFamilies.length)];
 
-            // Generate random traits
-            const femaleTraits = [
-                'Financial Acumen', 'Political Savvy', 'Beloved by People',
-                'Fertile', 'Pious', 'Influential', 'Scheming'
-            ];
-
             player.wife = {
                 name: this.generateName('female'),
                 fromFamily: wifeFamily,
-                traits: this.selectRandomTraits(femaleTraits, 2)
+                traits: this.selectRandomTraits(GameConfig.femaleTraits, 2)
             };
 
             player.mother = {
                 name: this.generateName('female'),
                 fromFamily: motherFamily,
-                traits: this.selectRandomTraits(femaleTraits, 2)
+                traits: this.selectRandomTraits(GameConfig.femaleTraits, 2)
             };
         });
     },
 
     // Generate random Roman names
     generateName(gender) {
-        const maleFirstNames = ['Marcus', 'Gaius', 'Lucius', 'Publius', 'Quintus', 'Titus', 'Sextus'];
-        const femaleFirstNames = ['Julia', 'Cornelia', 'Claudia', 'Livia', 'Octavia', 'Aurelia', 'Valeria'];
-
         if (gender === 'male') {
-            return maleFirstNames[Math.floor(Math.random() * maleFirstNames.length)];
+            return GameConfig.maleNames[Math.floor(Math.random() * GameConfig.maleNames.length)];
         } else {
-            return femaleFirstNames[Math.floor(Math.random() * femaleFirstNames.length)];
+            return GameConfig.femaleNames[Math.floor(Math.random() * GameConfig.femaleNames.length)];
         }
     },
 
@@ -122,38 +113,22 @@ const GameState = {
 
     // Initialize provinces
     initializeProvinces() {
-        // Roman provinces in roughly historical order of conquest
-        const provinceData = [
-            { name: 'Italia', estateCount: this.state.players.length * 5, conquered: true, year: 0 },
-            { name: 'Sicilia', estateCount: 12, conquered: false, year: 241 },
-            { name: 'Sardinia et Corsica', estateCount: 8, conquered: false, year: 238 },
-            { name: 'Hispania Citerior', estateCount: 10, conquered: false, year: 197 },
-            { name: 'Hispania Ulterior', estateCount: 14, conquered: false, year: 197 },
-            { name: 'Macedonia', estateCount: 16, conquered: false, year: 146 },
-            { name: 'Africa', estateCount: 18, conquered: false, year: 146 },
-            { name: 'Asia', estateCount: 20, conquered: false, year: 133 },
-            { name: 'Gallia Narbonensis', estateCount: 12, conquered: false, year: 121 },
-            { name: 'Cilicia', estateCount: 10, conquered: false, year: 102 },
-            { name: 'Creta et Cyrenaica', estateCount: 14, conquered: false, year: 74 },
-            { name: 'Bithynia et Pontus', estateCount: 16, conquered: false, year: 74 },
-            { name: 'Syria', estateCount: 18, conquered: false, year: 64 },
-            { name: 'Gallia Comata', estateCount: 22, conquered: false, year: 50 },
-            { name: 'Aegyptus', estateCount: 24, conquered: false, year: 30 },
-            { name: 'Britannia', estateCount: 14, conquered: false, year: 43 },
-            { name: 'Dacia', estateCount: 16, conquered: false, year: 106 }
-        ];
-
         this.state.provinces = [];
         let estateId = 0;
 
-        provinceData.forEach((prov, idx) => {
+        GameConfig.provinces.forEach((prov, idx) => {
+            // Calculate estate count (Italia uses player count)
+            const estateCount = prov.estateCount === null
+                ? this.state.players.length * GameConfig.startingEstatesPerPlayer
+                : prov.estateCount;
+
             const estates = [];
-            for (let i = 0; i < prov.estateCount; i++) {
+            for (let i = 0; i < estateCount; i++) {
                 estates.push({
                     id: estateId++,
                     provinceId: idx,
                     ownerId: null,
-                    yield: 2 // base gold per turn
+                    yield: GameConfig.baseEstateYield
                 });
             }
 
@@ -179,10 +154,10 @@ const GameState = {
             [estates[i], estates[j]] = [estates[j], estates[i]];
         }
 
-        // Distribute 5 estates to each player
+        // Distribute starting estates to each player
         this.state.players.forEach((player, idx) => {
-            for (let i = 0; i < 5; i++) {
-                const estate = estates[idx * 5 + i];
+            for (let i = 0; i < GameConfig.startingEstatesPerPlayer; i++) {
+                const estate = estates[idx * GameConfig.startingEstatesPerPlayer + i];
                 estate.ownerId = player.id;
                 player.estates.push(estate);
             }
@@ -207,7 +182,7 @@ const GameState = {
     // Deal initial cards
     dealInitialCards() {
         this.state.players.forEach(player => {
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < GameConfig.startingHandSize; i++) {
                 this.drawCard(player.id);
             }
         });
@@ -225,7 +200,7 @@ const GameState = {
             this.log('Card deck reshuffled');
         }
 
-        if (this.state.cardDeck.length > 0 && player.hand.length < 10) {
+        if (this.state.cardDeck.length > 0 && player.hand.length < GameConfig.maxHandSize) {
             const card = this.state.cardDeck.pop();
             player.hand.push(card);
         }
@@ -256,9 +231,9 @@ const GameState = {
         };
         this.state.gameLog.unshift(logEntry);
 
-        // Keep only last 50 entries
-        if (this.state.gameLog.length > 50) {
-            this.state.gameLog = this.state.gameLog.slice(0, 50);
+        // Keep only last N entries
+        if (this.state.gameLog.length > GameConfig.maxLogEntries) {
+            this.state.gameLog = this.state.gameLog.slice(0, GameConfig.maxLogEntries);
         }
     },
 
@@ -289,15 +264,15 @@ const GameState = {
     // Advance to next turn
     nextTurn() {
         this.state.turn++;
-        this.state.counter = Math.min(100, this.state.counter + 1);
+        this.state.counter = Math.min(GameConfig.counterMaximum, this.state.counter + GameConfig.counterIncrementPerTurn);
         this.log(`Turn ${this.state.turn} begins`);
     },
 
     // Check win condition
     checkWinCondition() {
-        if (this.state.dynastyCounter.count >= 4) {
+        if (this.state.dynastyCounter.count >= GameConfig.dynastyWinThreshold) {
             const winner = this.getPlayer(this.state.dynastyCounter.familyId);
-            this.log(`${winner.name} has won the game with 4 successive emperors!`);
+            this.log(`${winner.name} has won the game with ${GameConfig.dynastyWinThreshold} successive emperors!`);
             return winner;
         }
         return null;
@@ -331,7 +306,7 @@ const GameState = {
     // Calculate required military strength
     getRequiredMilitaryStrength() {
         const conqueredCount = this.state.provinces.filter(p => p.conquered).length;
-        return conqueredCount * this.state.militaryRequirement;
+        return conqueredCount * GameConfig.militaryRequirementPerProvince;
     },
 
     // Check for revolts
@@ -376,13 +351,13 @@ const GameState = {
         }
 
         const nextProvince = unconquered[0];
-        const required = this.getRequiredMilitaryStrength() + 20; // Need extra strength for conquest
+        const required = this.getRequiredMilitaryStrength() + GameConfig.conquestExtraMilitaryRequired;
 
         if (this.state.militaryStrength >= required) {
             // Success!
             nextProvince.conquered = true;
             nextProvince.conquestTurn = this.state.turn;
-            this.state.militaryStrength -= 10; // Conquest costs military strength
+            this.state.militaryStrength -= GameConfig.conquestMilitaryCost;
 
             this.log(`🏛️ CONQUEST! ${nextProvince.name} has been absorbed into the Roman Empire!`);
             this.log(`${nextProvince.estates.length} new estates are now available for distribution.`);
@@ -398,7 +373,7 @@ const GameState = {
         const required = this.getRequiredMilitaryStrength();
         const current = this.state.militaryStrength;
         const unconquered = this.state.provinces.filter(p => !p.conquered);
-        const nextConquestRequired = required + 20;
+        const nextConquestRequired = required + GameConfig.conquestExtraMilitaryRequired;
 
         return {
             current: current,
