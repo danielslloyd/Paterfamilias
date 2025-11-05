@@ -1,14 +1,14 @@
 // Core Turn Actions
 const Actions = {
     // Phase 1: Income & Obligations
-    processIncome(player) {
+    processIncome(player, gameState) {
         const income = Player.calculateEstateIncome(player);
-        player.gold += income;
+        player.accumulatedIncome += income;
 
-        // Apply trade monopoly bonuses
+        // Apply trade monopoly bonuses to accumulated income
         player.effects.forEach(effect => {
             if (effect.type === 'trade_monopoly') {
-                player.gold += effect.value;
+                player.accumulatedIncome += effect.value;
             }
         });
 
@@ -20,66 +20,82 @@ const Actions = {
             }
         });
 
-        GameState.log(`${player.name} collected ${income} gold from estates`);
+        GameState.log(`${player.name} earned ${income} gold from estates (accumulated: ${player.accumulatedIncome})`);
+
+        // Check if accumulated income reaches threshold for distribution
+        if (player.accumulatedIncome >= GameConfig.incomeAccumulationThreshold) {
+            this.distributeIncome(player, gameState);
+        }
 
         // Apply trait effects
         Player.applyTraitEffects(player);
     },
 
-    processTaxes(player, gameState) {
+    // Distribute accumulated income
+    distributeIncome(player, gameState) {
+        const totalIncome = player.accumulatedIncome;
+        let remaining = totalIncome;
+
+        // 1. Emperor gets tax
+        if (gameState.state.emperorId !== null && gameState.state.emperorId !== player.id) {
+            const emperor = GameState.getEmperor();
+            const taxAmount = Math.floor(totalIncome * gameState.state.taxRate);
+            emperor.gold += taxAmount;
+            remaining -= taxAmount;
+            GameState.log(`${player.name} paid ${taxAmount} gold in taxes to ${emperor.name}`);
+        }
+
+        // 2. Mother's family gets tribute
+        if (player.mother && remaining > 0) {
+            const motherPlayer = GameState.getPlayer(player.mother.fromFamily);
+            const tributeAmount = Math.floor(totalIncome * player.tributeRates.toMother);
+            const actualTribute = Math.min(tributeAmount, remaining);
+            motherPlayer.gold += actualTribute;
+            remaining -= actualTribute;
+            GameState.log(`${player.name} paid ${actualTribute} gold tribute to ${motherPlayer.name} (mother's family)`);
+        }
+
+        // 3. Wife's family gets tribute
+        if (player.wife && remaining > 0) {
+            const wifePlayer = GameState.getPlayer(player.wife.fromFamily);
+            const tributeAmount = Math.floor(totalIncome * player.tributeRates.toWife);
+            const actualTribute = Math.min(tributeAmount, remaining);
+            wifePlayer.gold += actualTribute;
+            remaining -= actualTribute;
+            GameState.log(`${player.name} paid ${actualTribute} gold tribute to ${wifePlayer.name} (wife's family)`);
+        }
+
+        // 4. Player keeps what's left
+        if (remaining > 0) {
+            player.gold += remaining;
+            GameState.log(`${player.name} received ${remaining} gold`);
+        }
+
+        // Reset accumulated income
+        player.accumulatedIncome = 0;
+    },
+
+    // Tax penalty for emperor (each 10% of tax decreases popular support by 1 every turn)
+    applyTaxPenalty(gameState) {
         if (gameState.state.emperorId === null) {
             return; // No taxes during Republic
         }
 
         const emperor = GameState.getEmperor();
-        if (emperor.id === player.id) {
-            return; // Emperor doesn't pay taxes to self
-        }
+        const taxIncrements = Math.floor(gameState.state.taxRate / GameConfig.taxRateIncrement);
+        const penalty = taxIncrements * GameConfig.taxPopularSupportPenaltyPerIncrement;
 
-        const taxAmount = Math.floor(player.gold * gameState.state.taxRate);
-        player.gold -= taxAmount;
-        emperor.gold += taxAmount;
-
-        // Check for tax refund effect
-        let refund = 0;
-        player.effects.forEach(effect => {
-            if (effect.type === 'tax_refund') {
-                refund = Math.floor(taxAmount * effect.value);
-                player.gold += refund;
-            }
-        });
-
-        if (refund > 0) {
-            GameState.log(`${player.name} paid ${taxAmount} gold in taxes (recovered ${refund} from tax farm)`);
-        } else {
-            GameState.log(`${player.name} paid ${taxAmount} gold in taxes to ${emperor.name}`);
+        if (penalty > 0) {
+            emperor.popularSupport = Math.max(0, emperor.popularSupport - penalty);
+            GameState.log(`Emperor ${emperor.name} loses ${penalty} popular support due to ${Math.floor(gameState.state.taxRate * 100)}% tax rate`);
         }
     },
 
-    processTribute(player, gameState) {
-        // Pay tribute to mother's family
-        if (player.mother) {
-            const motherPlayer = GameState.getPlayer(player.mother.fromFamily);
-            const tributeAmount = Math.floor(player.gold * player.tributeRates.toMother);
-            player.gold -= tributeAmount;
-            motherPlayer.gold += tributeAmount;
-            GameState.log(`${player.name} paid ${tributeAmount} gold tribute to ${motherPlayer.name} (mother's family)`);
-        }
-
-        // Pay tribute to wife's family
-        if (player.wife) {
-            const wifePlayer = GameState.getPlayer(player.wife.fromFamily);
-            const tributeAmount = Math.floor(player.gold * player.tributeRates.toWife);
-            player.gold -= tributeAmount;
-            wifePlayer.gold += tributeAmount;
-            GameState.log(`${player.name} paid ${tributeAmount} gold tribute to ${wifePlayer.name} (wife's family)`);
-        }
-
-        // Apply unmarried penalty
-        const hasUnmarriedPenalty = player.effects.some(e => e.type === 'unmarried_penalty');
-        if (!player.wife || hasUnmarriedPenalty) {
-            player.popularSupport = Math.max(0, player.popularSupport - 1);
-            GameState.log(`${player.name} suffers unmarried penalty: -1 Popular Support`);
+    // Apply unmarried penalty
+    applyUnmarriedPenalty(player) {
+        if (!player.wife) {
+            player.popularSupport = Math.max(0, player.popularSupport - GameConfig.unmarriedPenaltyPerTurn);
+            GameState.log(`${player.name} suffers unmarried penalty: -${GameConfig.unmarriedPenaltyPerTurn} Popular Support`);
         }
     },
 
@@ -90,19 +106,19 @@ const Actions = {
             return false;
         }
 
-        const cost = 10;
+        const cost = GameConfig.militaryContributionCost;
         if (player.gold < cost) {
             GameState.log(`${player.name} cannot afford to contribute to military (need ${cost} gold)`);
             return false;
         }
 
         player.gold -= cost;
-        player.auctoritas += 2;
-        player.popularSupport += 1;
-        GameState.state.militaryStrength += 5;
+        player.auctoritas += GameConfig.militaryContributionAuctoritas;
+        player.popularSupport += GameConfig.militaryContributionPopularSupport;
+        GameState.state.militaryStrength += GameConfig.militaryContributionStrength;
         player.actionTaken = true;
 
-        GameState.log(`${player.name} contributed to Rome's military! +2 Auctoritas, +1 Popular Support, +5 Military Strength`);
+        GameState.log(`${player.name} contributed to Rome's military! +${GameConfig.militaryContributionAuctoritas} Auctoritas, +${GameConfig.militaryContributionPopularSupport} Popular Support, +${GameConfig.militaryContributionStrength} Military Strength`);
         return true;
     },
 
@@ -112,7 +128,7 @@ const Actions = {
             return false;
         }
 
-        const cost = 8;
+        const cost = GameConfig.economicDevelopmentCost;
         if (player.gold < cost) {
             GameState.log(`${player.name} cannot afford economic development (need ${cost} gold)`);
             return false;
@@ -127,11 +143,11 @@ const Actions = {
 
         // Improve one random estate
         const randomEstate = player.estates[Math.floor(Math.random() * player.estates.length)];
-        randomEstate.yield += 1;
+        randomEstate.yield += GameConfig.estateYieldImprovement;
 
         player.actionTaken = true;
 
-        GameState.log(`${player.name} developed an estate! Permanent income increased.`);
+        GameState.log(`${player.name} developed an estate! Permanent income increased by ${GameConfig.estateYieldImprovement}.`);
         return true;
     },
 
@@ -141,17 +157,17 @@ const Actions = {
             return false;
         }
 
-        const cost = 6;
+        const cost = GameConfig.politicalManeuveringCost;
         if (player.gold < cost) {
             GameState.log(`${player.name} cannot afford political maneuvering (need ${cost} gold)`);
             return false;
         }
 
         player.gold -= cost;
-        player.auctoritas += 3;
+        player.auctoritas += GameConfig.politicalManeuveringAuctoritas;
         player.actionTaken = true;
 
-        GameState.log(`${player.name} engaged in political maneuvering! +3 Auctoritas`);
+        GameState.log(`${player.name} engaged in political maneuvering! +${GameConfig.politicalManeuveringAuctoritas} Auctoritas`);
         return true;
     },
 
@@ -237,17 +253,30 @@ const Actions = {
             return false;
         }
 
-        newRate = Math.max(0, Math.min(0.50, newRate));
+        // Round to nearest increment (10%)
+        newRate = Math.round(newRate / GameConfig.taxRateIncrement) * GameConfig.taxRateIncrement;
+
+        // Clamp to valid range
+        newRate = Math.max(GameConfig.minTaxRate, Math.min(GameConfig.maxTaxRate, newRate));
+
         const oldRate = gameState.state.taxRate;
+
+        if (newRate === oldRate) {
+            GameState.log(`Tax rate unchanged at ${Math.floor(newRate * 100)}%`);
+            return true;
+        }
+
         gameState.state.taxRate = newRate;
 
-        // Adjust popularity based on tax change
+        // Adjust popularity based on tax change (immediate one-time effect)
         if (newRate > oldRate) {
-            emperor.popularSupport -= Math.floor((newRate - oldRate) * 20);
-            GameState.log(`Emperor ${emperor.name} raised taxes to ${Math.floor(newRate * 100)}%! Popular support decreased.`);
+            const penalty = Math.floor((newRate - oldRate) * GameConfig.taxIncreasePopularSupportPenalty);
+            emperor.popularSupport -= penalty;
+            GameState.log(`Emperor ${emperor.name} raised taxes to ${Math.floor(newRate * 100)}%! Popular support decreased by ${penalty}.`);
         } else if (newRate < oldRate) {
-            emperor.popularSupport += Math.floor((oldRate - newRate) * 10);
-            GameState.log(`Emperor ${emperor.name} lowered taxes to ${Math.floor(newRate * 100)}%! Popular support increased.`);
+            const bonus = Math.floor((oldRate - newRate) * GameConfig.taxDecreasePopularSupportBonus);
+            emperor.popularSupport += bonus;
+            GameState.log(`Emperor ${emperor.name} lowered taxes to ${Math.floor(newRate * 100)}%! Popular support increased by ${bonus}.`);
         }
 
         return true;
@@ -259,7 +288,7 @@ const Actions = {
             return false;
         }
 
-        const cost = 20;
+        const cost = GameConfig.campaignCost;
         if (emperor.gold < cost) {
             GameState.log(`Emperor ${emperor.name} cannot afford to launch a campaign (need ${cost} gold)`);
             return false;
@@ -268,7 +297,7 @@ const Actions = {
         emperor.gold -= cost;
 
         // Check for sabotage
-        let failureChance = 0.30; // Base 30% failure
+        let failureChance = GameConfig.campaignBaseFailureChance;
         emperor.effects.forEach(effect => {
             if (effect.type === 'campaign_sabotage') {
                 failureChance += effect.value;
@@ -284,19 +313,19 @@ const Actions = {
             const conquered = GameState.attemptConquest();
 
             if (conquered) {
-                emperor.popularSupport += 5;
-                GameState.log(`Emperor ${emperor.name} gains +5 Popular Support!`);
+                emperor.popularSupport += GameConfig.campaignSuccessPopularSupport;
+                GameState.log(`Emperor ${emperor.name} gains +${GameConfig.campaignSuccessPopularSupport} Popular Support!`);
                 GameState.log(`Emperor must now distribute the new estates.`);
             } else {
                 // Campaign successful but couldn't conquer (insufficient military)
-                emperor.popularSupport += 2;
-                gameState.state.militaryStrength += 5;
+                emperor.popularSupport += GameConfig.campaignPartialSuccessPopularSupport;
+                gameState.state.militaryStrength += GameConfig.campaignPartialSuccessStrength;
                 GameState.log(`Campaign successful! Rome's military strengthened but no new territory conquered.`);
             }
         } else {
-            emperor.popularSupport -= 5;
-            gameState.state.militaryStrength -= 5;
-            GameState.log(`Campaign failed! Emperor ${emperor.name} loses 5 Popular Support, -5 Military Strength.`);
+            emperor.popularSupport += GameConfig.campaignFailurePopularSupport; // This is negative
+            gameState.state.militaryStrength += GameConfig.campaignFailureStrength; // This is negative
+            GameState.log(`Campaign failed! Emperor ${emperor.name} loses ${-GameConfig.campaignFailurePopularSupport} Popular Support, ${-GameConfig.campaignFailureStrength} Military Strength.`);
         }
 
         return success;
@@ -340,7 +369,7 @@ const Actions = {
             return false;
         }
 
-        const cost = 15;
+        const cost = GameConfig.counterInfluenceCost;
         if (emperor.gold < cost) {
             GameState.log(`Emperor ${emperor.name} cannot afford to influence the counter (need ${cost} gold)`);
             return false;
@@ -349,13 +378,13 @@ const Actions = {
         emperor.gold -= cost;
 
         if (direction === 'up') {
-            gameState.state.counter = Math.min(100, gameState.state.counter + 3);
-            emperor.auctoritas += 2;
-            emperor.popularSupport -= 2;
+            gameState.state.counter = Math.min(GameConfig.counterMaximum, gameState.state.counter + GameConfig.counterInfluenceShift);
+            emperor.auctoritas += GameConfig.counterInfluenceVirtueBonus;
+            emperor.popularSupport -= GameConfig.counterInfluencePopularityBonus;
             GameState.log(`Emperor ${emperor.name} promoted virtuous institutions! Counter moved toward virtue.`);
         } else {
-            gameState.state.counter = Math.max(1, gameState.state.counter - 3);
-            emperor.popularSupport += 2;
+            gameState.state.counter = Math.max(1, gameState.state.counter - GameConfig.counterInfluenceShift);
+            emperor.popularSupport += GameConfig.counterInfluencePopularityBonus;
             emperor.auctoritas -= 1;
             GameState.log(`Emperor ${emperor.name} enacted populist reforms! Counter moved toward popularity.`);
         }
@@ -365,17 +394,8 @@ const Actions = {
 
     // Phase 5: End of Turn
     endTurn(player, gameState) {
-        // Age the paterfamilias
-        let ageIncrease = 1;
-
-        // Check for accelerated aging (poison)
-        player.effects.forEach(effect => {
-            if (effect.type === 'accelerated_aging') {
-                ageIncrease += effect.value;
-            }
-        });
-
-        player.paterfamilias.age += ageIncrease;
+        // Increment turns as paterfamilias
+        player.paterfamilias.turnsAsPaterfamilias++;
 
         // Age family and check for births
         Player.ageFamily(player);
@@ -385,15 +405,21 @@ const Actions = {
             Player.handleDeath(player, gameState);
         }
 
+        // Apply unmarried penalty
+        this.applyUnmarriedPenalty(player);
+
         // Update effects
         Player.updateEffects(player);
 
-        // Military decay (1 point per turn if we're the last player of the round)
+        // Military decay and tax penalties (once per round - last player)
         if (gameState.state.currentPlayerIndex === gameState.state.players.length - 1) {
-            gameState.state.militaryStrength = Math.max(0, gameState.state.militaryStrength - 1);
+            gameState.state.militaryStrength = Math.max(0, gameState.state.militaryStrength - GameConfig.militaryDecayPerTurn);
 
             // Check for revolts due to weak military
             GameState.checkForRevolts();
+
+            // Apply emperor tax penalty (once per turn)
+            this.applyTaxPenalty(gameState);
         }
 
         // Check if player can become first Emperor

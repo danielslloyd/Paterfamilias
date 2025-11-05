@@ -12,13 +12,14 @@ const Player = {
         return {
             id: id,
             name: familyName,
-            gold: 10,
-            popularSupport: 5,
-            auctoritas: 5,
+            gold: GameConfig.startingGold,
+            accumulatedIncome: 0, // Income accumulates until it reaches threshold
+            popularSupport: GameConfig.startingPopularSupport,
+            auctoritas: GameConfig.startingAuctoritas,
             estates: [],
             paterfamilias: {
                 name: this.generatePaterfamiliasName(),
-                age: 30,
+                turnsAsPaterfamilias: GameConfig.startingPaterfamiliasTurns,
                 traits: this.selectRandomTraits(maleTraits, 1)
             },
             wife: null, // Will be assigned later
@@ -26,8 +27,8 @@ const Player = {
             children: [],
             hand: [],
             tributeRates: {
-                toMother: 0.05,
-                toWife: 0.05
+                toMother: GameConfig.defaultMotherTribute,
+                toWife: GameConfig.defaultWifeTribute
             },
             actionTaken: false, // Track if core action taken this turn
             cardPlayed: false, // Track if card played this turn
@@ -141,23 +142,23 @@ const Player = {
         player.popularSupport = Math.max(0, player.popularSupport);
     },
 
-    // Calculate death probability based on age
-    calculateDeathProbability(age) {
-        if (age <= 50) return 0.02;
-        if (age <= 60) return 0.05;
-        if (age <= 70) return 0.10;
-        return 0.20;
+    // Calculate death probability based on turns as paterfamilias
+    calculateDeathProbability(turns) {
+        if (turns < GameConfig.maxPaterfamiliasTurns) {
+            return 0; // No natural death until cap
+        }
+        return GameConfig.deathProbabilityPerTurn;
     },
 
     // Check for death
     checkDeath(player) {
-        const probability = this.calculateDeathProbability(player.paterfamilias.age);
+        const probability = this.calculateDeathProbability(player.paterfamilias.turnsAsPaterfamilias);
         return Math.random() < probability;
     },
 
     // Handle death and succession
     handleDeath(player, gameState) {
-        GameState.log(`${player.paterfamilias.name} of ${player.name} has died at age ${player.paterfamilias.age}`);
+        GameState.log(`${player.paterfamilias.name} of ${player.name} has died after ${player.paterfamilias.turnsAsPaterfamilias} turns as paterfamilias`);
 
         // Find a son to succeed
         const sons = player.children.filter(child => child.gender === 'male' && child.age >= 18);
@@ -168,7 +169,7 @@ const Player = {
             const heir = sons[0];
 
             player.paterfamilias.name = heir.name;
-            player.paterfamilias.age = heir.age;
+            player.paterfamilias.turnsAsPaterfamilias = 0; // Reset turn counter
             player.paterfamilias.traits = heir.traits;
 
             // Remove heir from children
@@ -180,18 +181,18 @@ const Player = {
             GameState.log(`${player.name} has no eligible heir! A distant relative takes control with penalties.`);
 
             player.paterfamilias.name = Player.generatePaterfamiliasName();
-            player.paterfamilias.age = 25 + Math.floor(Math.random() * 10);
+            player.paterfamilias.turnsAsPaterfamilias = 0; // Reset turn counter
             player.paterfamilias.traits = [];
 
             // Apply penalties
-            player.auctoritas = Math.max(0, player.auctoritas - 5);
-            player.popularSupport = Math.max(0, player.popularSupport - 3);
+            player.auctoritas = Math.max(0, player.auctoritas - GameConfig.successionCrisisPenalty.auctoritas);
+            player.popularSupport = Math.max(0, player.popularSupport - GameConfig.successionCrisisPenalty.popularSupport);
 
             // Add negative effect for 3 turns
             player.effects.push({
                 type: 'income_modifier',
-                value: -0.25,
-                duration: 3,
+                value: GameConfig.successionCrisisPenalty.incomeModifier,
+                duration: GameConfig.successionCrisisPenalty.duration,
                 name: 'Succession Crisis'
             });
         }
@@ -241,10 +242,10 @@ const Player = {
         });
 
         // Check for new births
-        let fertilityChance = 0.15; // Base 15% chance per turn
+        let fertilityChance = GameConfig.baseFertilityChance;
 
         if (player.wife && player.wife.traits.includes('Fertile')) {
-            fertilityChance += 0.15;
+            fertilityChance += GameConfig.fertileBonusChance;
         }
 
         // Check temporary effects
@@ -254,7 +255,8 @@ const Player = {
             }
         });
 
-        if (Math.random() < fertilityChance && player.paterfamilias.age < 60) {
+        // Can only have children if married
+        if (player.wife && Math.random() < fertilityChance) {
             this.addChild(player);
         }
     },

@@ -198,10 +198,8 @@ const UI = {
             GameState.log(`${player.name}: A ${neededGender} child, ${name}, is born! (Ensuring family succession)`);
         }
 
-        // Process income
-        Actions.processIncome(player);
-        Actions.processTaxes(player, GameState);
-        Actions.processTribute(player, GameState);
+        // Process income (includes taxes and tribute distribution)
+        Actions.processIncome(player, GameState);
 
         // Check dynasty progress
         Succession.checkDynastyProgress(GameState);
@@ -291,7 +289,7 @@ const UI = {
                     G:${player.gold} | S:${player.popularSupport} | V:${player.auctoritas} | E:${player.estates.length}
                 </div>
                 <div class="player-card-family">
-                    ${player.paterfamilias.name} (${player.paterfamilias.age})
+                    ${player.paterfamilias.name} (${player.paterfamilias.turnsAsPaterfamilias}T)
                     ${wifeFamily ? `<span class="marriage-indicator">⚭ ${wifeFamily.name}</span>` : ''}
                     ${childrenHTML}
                 </div>
@@ -314,7 +312,7 @@ const UI = {
         // Paterfamilias
         const pfInfo = document.getElementById('paterfamilias-info');
         pfInfo.innerHTML = `
-            <strong>Paterfamilias:</strong> ${player.paterfamilias.name} (Age ${player.paterfamilias.age})
+            <strong>Paterfamilias:</strong> ${player.paterfamilias.name} (${player.paterfamilias.turnsAsPaterfamilias} turns)
             <br><small>${player.paterfamilias.traits.join(', ')}</small>
         `;
 
