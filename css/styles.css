@@ -127,6 +127,15 @@ body {
     color: #f4e8d0;
 }
 
+.stat-highlight {
+    background-color: rgba(255, 215, 0, 0.3);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
 .player-card-family {
     font-size: 0.75em;
     margin-top: 8px;
@@ -471,6 +480,21 @@ section h2 {
 
 .military-at-risk {
     color: #FF6B6B;
+}
+
+#provinces-map-container {
+    width: 100%;
+    margin-bottom: 15px;
+    border: 2px solid #8b0000;
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: #87CEEB;
+}
+
+#provinces-map {
+    width: 100%;
+    height: auto;
+    display: block;
 }
 
 .province {

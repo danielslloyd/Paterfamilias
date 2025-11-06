@@ -41,9 +41,10 @@ const GameConfig = {
     childTraitCountBonusChance: 0.3, // 30% chance for 2 traits
 
     // Counter and Succession
-    initialCounter: 1,
+    initialCounter: 100,
+    counterMinimum: 1,
     counterMaximum: 100,
-    counterIncrementPerTurn: 1,
+    counterIncrementPerTurn: -1,
     dynastyWinThreshold: 4, // Successive emperors needed to win
 
     // Military

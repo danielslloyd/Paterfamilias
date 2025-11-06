@@ -118,7 +118,7 @@ const Actions = {
         GameState.state.militaryStrength += GameConfig.militaryContributionStrength;
         player.actionTaken = true;
 
-        GameState.log(`${player.name} contributed to Rome's military! +${GameConfig.militaryContributionAuctoritas} Auctoritas, +${GameConfig.militaryContributionPopularSupport} Popular Support, +${GameConfig.militaryContributionStrength} Military Strength`);
+        GameState.log(`${player.name} contributed to Rome's military! +${GameConfig.militaryContributionAuctoritas} Virtue, +${GameConfig.militaryContributionPopularSupport} Popular Support, +${GameConfig.militaryContributionStrength} Military Strength`);
         return true;
     },
 
@@ -167,7 +167,7 @@ const Actions = {
         player.auctoritas += GameConfig.politicalManeuveringAuctoritas;
         player.actionTaken = true;
 
-        GameState.log(`${player.name} engaged in political maneuvering! +${GameConfig.politicalManeuveringAuctoritas} Auctoritas`);
+        GameState.log(`${player.name} engaged in political maneuvering! +${GameConfig.politicalManeuveringAuctoritas} Virtue`);
         return true;
     },
 

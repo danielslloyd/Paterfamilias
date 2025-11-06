@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" style="background: #87CEEB;">
+  <!-- Mediterranean Sea -->
+  <path d="M 100,250 Q 200,280 300,270 Q 400,260 500,270 Q 600,280 650,300 L 650,400 Q 600,420 500,410 Q 400,400 300,410 Q 200,420 100,400 Z" fill="#4169E1" opacity="0.3"/>
+
+  <!-- Provinces as paths with IDs matching game province indices -->
+
+  <!-- 0: Italia (Central, always conquered) -->
+  <g id="province-0" class="province conquered">
+    <path d="M 350,200 L 380,180 L 390,220 L 410,280 L 400,320 L 380,340 L 360,330 L 340,300 L 330,250 Z"
+          fill="#90EE90" stroke="#2c1810" stroke-width="2"/>
+    <text x="370" y="270" font-size="12" fill="#000" text-anchor="middle">Italia</text>
+    <circle id="icon-province-0" cx="370" cy="250" r="8" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 1: Sicilia (Sicily) -->
+  <g id="province-1" class="province">
+    <path d="M 350,350 L 380,350 L 385,365 L 375,375 L 355,372 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="367" y="365" font-size="10" fill="#000" text-anchor="middle">Sicilia</text>
+    <circle id="icon-province-1" cx="367" cy="355" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 2: Sardinia et Corsica -->
+  <g id="province-2" class="province">
+    <path d="M 280,250 L 295,240 L 305,245 L 305,270 L 295,275 L 285,265 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="293" y="260" font-size="9" fill="#000" text-anchor="middle">Sard</text>
+    <circle id="icon-province-2" cx="293" cy="250" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 3: Hispania Citerior (Eastern Spain) -->
+  <g id="province-3" class="province">
+    <path d="M 150,220 L 220,200 L 240,220 L 240,260 L 220,270 L 180,260 L 150,240 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="195" y="240" font-size="10" fill="#000" text-anchor="middle">H.Cit</text>
+    <circle id="icon-province-3" cx="195" cy="230" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 4: Hispania Ulterior (Western Spain) -->
+  <g id="province-4" class="province">
+    <path d="M 80,200 L 150,210 L 150,240 L 120,250 L 90,240 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="120" y="230" font-size="10" fill="#000" text-anchor="middle">H.Ult</text>
+    <circle id="icon-province-4" cx="120" cy="220" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 5: Macedonia -->
+  <g id="province-5" class="province">
+    <path d="M 450,220 L 490,210 L 510,230 L 505,260 L 480,270 L 455,255 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="480" y="245" font-size="10" fill="#000" text-anchor="middle">Maced</text>
+    <circle id="icon-province-5" cx="480" cy="235" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 6: Africa (Tunisia/Libya) -->
+  <g id="province-6" class="province">
+    <path d="M 300,350 L 380,340 L 400,360 L 410,390 L 380,410 L 320,400 L 295,370 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="350" y="380" font-size="10" fill="#000" text-anchor="middle">Africa</text>
+    <circle id="icon-province-6" cx="350" cy="370" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 7: Asia (Western Turkey) -->
+  <g id="province-7" class="province">
+    <path d="M 530,240 L 580,230 L 600,250 L 595,280 L 570,290 L 540,275 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="565" y="265" font-size="10" fill="#000" text-anchor="middle">Asia</text>
+    <circle id="icon-province-7" cx="565" cy="255" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 8: Gallia Narbonensis (Southern France) -->
+  <g id="province-8" class="province">
+    <path d="M 250,170 L 300,160 L 330,180 L 330,210 L 300,220 L 260,205 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="290" y="190" font-size="9" fill="#000" text-anchor="middle">G.Narb</text>
+    <circle id="icon-province-8" cx="290" cy="180" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 9: Cilicia (Southern Turkey) -->
+  <g id="province-9" class="province">
+    <path d="M 600,280 L 640,275 L 655,295 L 645,315 L 620,320 L 600,305 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="625" y="300" font-size="9" fill="#000" text-anchor="middle">Cilic</text>
+    <circle id="icon-province-9" cx="625" cy="295" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 10: Creta et Cyrenaica (Crete & Libya) -->
+  <g id="province-10" class="province">
+    <path d="M 480,330 L 530,325 L 545,340 L 540,355 L 510,360 L 480,350 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="510" y="345" font-size="9" fill="#000" text-anchor="middle">Creta</text>
+    <circle id="icon-province-10" cx="510" cy="338" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 11: Bithynia et Pontus (Northern Turkey) -->
+  <g id="province-11" class="province">
+    <path d="M 590,200 L 650,190 L 670,210 L 665,235 L 630,245 L 595,230 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="630" y="220" font-size="9" fill="#000" text-anchor="middle">Bith</text>
+    <circle id="icon-province-11" cx="630" cy="215" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 12: Syria -->
+  <g id="province-12" class="province">
+    <path d="M 650,320 L 700,310 L 720,340 L 715,370 L 680,380 L 655,360 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="685" y="345" font-size="10" fill="#000" text-anchor="middle">Syria</text>
+    <circle id="icon-province-12" cx="685" cy="340" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 13: Gallia Comata (Central/Northern France) -->
+  <g id="province-13" class="province">
+    <path d="M 200,100 L 280,90 L 320,110 L 330,150 L 300,165 L 240,160 L 200,130 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="265" y="130" font-size="10" fill="#000" text-anchor="middle">G.Com</text>
+    <circle id="icon-province-13" cx="265" cy="120" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 14: Aegyptus (Egypt) -->
+  <g id="province-14" class="province">
+    <path d="M 620,400 L 680,390 L 700,420 L 695,470 L 660,485 L 620,465 L 610,430 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="655" y="440" font-size="10" fill="#000" text-anchor="middle">Egypt</text>
+    <circle id="icon-province-14" cx="655" cy="430" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 15: Britannia -->
+  <g id="province-15" class="province">
+    <path d="M 220,40 L 270,30 L 300,50 L 295,85 L 260,95 L 225,75 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="260" y="65" font-size="10" fill="#000" text-anchor="middle">Brit</text>
+    <circle id="icon-province-15" cx="260" cy="55" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- 16: Dacia (Romania) -->
+  <g id="province-16" class="province">
+    <path d="M 480,140 L 540,130 L 570,150 L 565,180 L 530,195 L 485,180 Z"
+          fill="#D3D3D3" stroke="#2c1810" stroke-width="2"/>
+    <text x="520" y="165" font-size="10" fill="#000" text-anchor="middle">Dacia</text>
+    <circle id="icon-province-16" cx="520" cy="155" r="6" fill="none" stroke="#ffd700" stroke-width="2" opacity="0"/>
+  </g>
+
+  <!-- Legend -->
+  <g id="legend" transform="translate(20, 500)">
+    <rect x="0" y="0" width="200" height="80" fill="#3d2817" stroke="#ffd700" stroke-width="2" rx="5"/>
+    <text x="10" y="20" font-size="12" fill="#ffd700" font-weight="bold">Province Status:</text>
+    <rect x="10" y="30" width="20" height="15" fill="#90EE90" stroke="#2c1810" stroke-width="1"/>
+    <text x="35" y="42" font-size="11" fill="#f4e8d0">Conquered</text>
+    <rect x="10" y="50" width="20" height="15" fill="#D3D3D3" stroke="#2c1810" stroke-width="1"/>
+    <text x="35" y="62" font-size="11" fill="#f4e8d0">Unconquered</text>
+  </g>
+
+  <style>
+    .province path {
+      transition: fill 0.3s ease;
+      cursor: pointer;
+    }
+    .province.conquered path {
+      fill: #90EE90;
+    }
+    .province:hover path {
+      opacity: 0.8;
+    }
+  </style>
+</svg>

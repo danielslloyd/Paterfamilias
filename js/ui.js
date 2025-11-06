@@ -247,6 +247,28 @@ const UI = {
         const topBar = document.getElementById('players-top-bar');
         topBar.innerHTML = '';
 
+        // Find highest P and V across all players (with tiebreakers)
+        let highestP = null;
+        let highestV = null;
+
+        GameState.state.players.forEach(player => {
+            // Check for highest P (tie broken by V, then gold)
+            if (!highestP ||
+                player.popularSupport > highestP.popularSupport ||
+                (player.popularSupport === highestP.popularSupport && player.auctoritas > highestP.auctoritas) ||
+                (player.popularSupport === highestP.popularSupport && player.auctoritas === highestP.auctoritas && player.gold > highestP.gold)) {
+                highestP = player;
+            }
+
+            // Check for highest V (tie broken by P, then gold)
+            if (!highestV ||
+                player.auctoritas > highestV.auctoritas ||
+                (player.auctoritas === highestV.auctoritas && player.popularSupport > highestV.popularSupport) ||
+                (player.auctoritas === highestV.auctoritas && player.popularSupport === highestV.popularSupport && player.gold > highestV.gold)) {
+                highestV = player;
+            }
+        });
+
         GameState.state.players.forEach(player => {
             const playerCard = document.createElement('div');
             playerCard.className = 'player-card';
@@ -281,12 +303,16 @@ const UI = {
                 }
             }
 
+            // Add highlight classes for highest P and V
+            const pClass = (highestP && player.id === highestP.id) ? ' class="stat-highlight"' : '';
+            const vClass = (highestV && player.id === highestV.id) ? ' class="stat-highlight"' : '';
+
             playerCard.innerHTML = `
                 <div class="player-card-header">
                     <span>${player.name}${isEmperor ? ' 👑' : ''}</span>
                 </div>
                 <div class="player-card-resources">
-                    G:${player.gold} | S:${player.popularSupport} | V:${player.auctoritas} | E:${player.estates.length}
+                    G:${player.gold} | <span${pClass}>P:${player.popularSupport}</span> | <span${vClass}>V:${player.auctoritas}</span> | E:${player.estates.length}
                 </div>
                 <div class="player-card-family">
                     ${player.paterfamilias.name} (${player.paterfamilias.turnsAsPaterfamilias}T)
@@ -481,8 +507,81 @@ const UI = {
     },
 
 
+    // Update SVG map
+    updateProvinceMap() {
+        const mapObject = document.getElementById('provinces-map');
+        if (!mapObject || !mapObject.contentDocument) return;
+
+        const svgDoc = mapObject.contentDocument;
+
+        GameState.state.provinces.forEach((province, idx) => {
+            const provinceGroup = svgDoc.getElementById(`province-${idx}`);
+            if (!provinceGroup) return;
+
+            // Update conquered status
+            if (province.conquered) {
+                provinceGroup.classList.add('conquered');
+            } else {
+                provinceGroup.classList.remove('conquered');
+            }
+
+            // Count estates per family
+            const familyCounts = {};
+            province.estates.forEach(estate => {
+                if (estate.ownerId !== null) {
+                    familyCounts[estate.ownerId] = (familyCounts[estate.ownerId] || 0) + 1;
+                }
+            });
+
+            // Find family with most estates in this province
+            let maxCount = 0;
+            let dominantFamily = null;
+            Object.entries(familyCounts).forEach(([playerId, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    dominantFamily = playerId;
+                }
+            });
+
+            // Show icon for dominant family
+            const icon = svgDoc.getElementById(`icon-province-${idx}`);
+            if (icon && dominantFamily !== null && province.conquered) {
+                icon.setAttribute('opacity', '1');
+                const player = GameState.getPlayer(parseInt(dominantFamily));
+                // Use player ID to determine color
+                const colors = ['#FFD700', '#FF4500', '#4169E1', '#32CD32'];
+                icon.setAttribute('fill', colors[player.id % colors.length]);
+                icon.setAttribute('stroke', colors[player.id % colors.length]);
+
+                // Add text showing count
+                let textElement = svgDoc.getElementById(`text-province-${idx}`);
+                if (!textElement) {
+                    textElement = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    textElement.setAttribute('id', `text-province-${idx}`);
+                    textElement.setAttribute('font-size', '10');
+                    textElement.setAttribute('font-weight', 'bold');
+                    textElement.setAttribute('text-anchor', 'middle');
+                    textElement.setAttribute('fill', '#000');
+                    provinceGroup.appendChild(textElement);
+                }
+                const iconX = parseFloat(icon.getAttribute('cx'));
+                const iconY = parseFloat(icon.getAttribute('cy'));
+                textElement.setAttribute('x', iconX);
+                textElement.setAttribute('y', iconY + 4);
+                textElement.textContent = maxCount;
+            } else if (icon) {
+                icon.setAttribute('opacity', '0');
+                const textElement = svgDoc.getElementById(`text-province-${idx}`);
+                if (textElement) textElement.remove();
+            }
+        });
+    },
+
     // Render provinces
     renderProvinces() {
+        // Update SVG map
+        this.updateProvinceMap();
+
         const provincesList = document.getElementById('provinces-list');
         provincesList.innerHTML = '';
 

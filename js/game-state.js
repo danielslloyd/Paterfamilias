@@ -264,7 +264,7 @@ const GameState = {
     // Advance to next turn
     nextTurn() {
         this.state.turn++;
-        this.state.counter = Math.min(GameConfig.counterMaximum, this.state.counter + GameConfig.counterIncrementPerTurn);
+        this.state.counter = Math.max(GameConfig.counterMinimum, Math.min(GameConfig.counterMaximum, this.state.counter + GameConfig.counterIncrementPerTurn));
         this.log(`Turn ${this.state.turn} begins`);
     },
 
