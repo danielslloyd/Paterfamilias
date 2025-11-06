@@ -40,6 +40,11 @@ const UI = {
         document.getElementById('btn-end-turn').addEventListener('click', () => {
             this.handleEndTurn();
         });
+
+        // Read omens button
+        document.getElementById('btn-read-omens').addEventListener('click', () => {
+            this.handleReadOmens();
+        });
     },
 
     // Handle core actions
@@ -214,6 +219,7 @@ const UI = {
         this.renderPlayersTopBar();
         this.renderPlayerPanel();
         this.renderActionButtons();
+        this.renderEventQueue();
         this.renderHand();
         this.renderImperialSection();
         this.renderMilitaryStatus();
@@ -372,6 +378,96 @@ const UI = {
         document.querySelectorAll('.action-btn').forEach(btn => {
             btn.disabled = player.actionTaken;
         });
+    },
+
+    // Render event queue
+    renderEventQueue() {
+        const queueDisplay = document.getElementById('event-queue-display');
+        queueDisplay.innerHTML = '';
+
+        const queue = GameState.state.eventQueue;
+
+        if (queue.length === 0) {
+            queueDisplay.innerHTML = '<p class="no-events">No omens in the queue</p>';
+            return;
+        }
+
+        const queueContainer = document.createElement('div');
+        queueContainer.className = 'event-queue-container';
+
+        queue.forEach((eventCard, index) => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'event-card';
+
+            if (eventCard.faceUp) {
+                cardElement.classList.add('face-up');
+                cardElement.innerHTML = `
+                    <div class="event-card-header">${index + 1}</div>
+                    <div class="event-card-name">${eventCard.name}</div>
+                    <div class="event-card-type">${eventCard.type === 'empire_wide' ? '🌍 Empire' : '🎯 Targeted'}</div>
+                `;
+                cardElement.title = eventCard.description;
+            } else {
+                cardElement.classList.add('face-down');
+                cardElement.innerHTML = `
+                    <div class="event-card-header">${index + 1}</div>
+                    <div class="event-card-back">?</div>
+                `;
+                cardElement.title = 'Face down - read the omens to reveal';
+            }
+
+            queueContainer.appendChild(cardElement);
+        });
+
+        queueDisplay.appendChild(queueContainer);
+
+        // Update read omens button
+        const player = GameState.getCurrentPlayer();
+        const readOmensBtn = document.getElementById('btn-read-omens');
+        readOmensBtn.disabled = player.gold < GameConfig.readOmensCost;
+    },
+
+    // Handle read omens
+    handleReadOmens() {
+        const player = GameState.getCurrentPlayer();
+        const success = Actions.readOmens(player, GameState);
+
+        if (success) {
+            // Show a modal or alert with the revealed cards
+            this.showOmensRevealedDialog();
+        }
+
+        this.render();
+    },
+
+    // Show omens revealed dialog
+    showOmensRevealedDialog() {
+        const queue = GameState.state.eventQueue;
+        const revealCount = Math.min(GameConfig.readOmensRevealCount, queue.length);
+
+        let html = '<div class="modal-dialog"><h2>The Omens Revealed</h2>';
+        html += '<p>You have glimpsed the future events:</p>';
+        html += '<div class="revealed-omens">';
+
+        for (let i = 0; i < revealCount; i++) {
+            if (queue[i]) {
+                const card = queue[i];
+                html += `
+                    <div class="revealed-omen">
+                        <strong>Position ${i + 1}: ${card.name}</strong>
+                        <p>${card.description}</p>
+                        <span class="omen-type">${card.type === 'empire_wide' ? 'Empire-Wide Event' : 'Targeted Event'}</span>
+                    </div>
+                `;
+            }
+        }
+
+        html += '</div>';
+        html += '<button class="primary-btn" onclick="UI.closeModal()">Close</button>';
+        html += '</div>';
+
+        document.getElementById('modal-content').innerHTML = html;
+        document.getElementById('modal-overlay').style.display = 'flex';
     },
 
     // Render hand

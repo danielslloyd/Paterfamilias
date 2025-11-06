@@ -3,8 +3,15 @@
 
 const GameConfig = {
     // Paterfamilias and Succession
-    maxPaterfamiliasTurns: 10, // Maximum turns as paterfamilias before death
+    maxPaterfamiliasTurns: 10, // Maximum turns as paterfamilias before automatic death
     deathProbabilityPerTurn: 0.10, // 10% chance per turn (when at cap)
+
+    // Event Cards
+    eventCardQueueSize: 5, // Number of face-down event cards visible in queue
+    eventCardDrawFrequency: 1, // Draw and execute event card every N full turn cycles
+    readOmensCost: 5, // Gold cost to peek at upcoming event cards
+    readOmensRevealCount: 3, // Number of cards revealed when reading omens
+    eventCardsPerDeck: 20, // Total event cards in the deck
 
     // Starting Values
     startingGold: 10,

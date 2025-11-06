@@ -10,6 +10,10 @@ const GameState = {
         provinces: [],
         cardDeck: [],
         discardPile: [],
+        eventDeck: [], // Separate deck for event cards
+        eventQueue: [], // Face-down event cards (5 at a time)
+        eventDiscardPile: [], // Discarded event cards
+        turnsSinceLastEvent: 0, // Track when to execute next event
         currentPlayerIndex: 0,
         dynastyCounter: {
             familyId: null,
@@ -32,6 +36,10 @@ const GameState = {
         this.state.gameLog = [];
         this.state.phase = 'income';
         this.state.militaryStrength = GameConfig.initialMilitaryStrength;
+        this.state.eventDeck = [];
+        this.state.eventQueue = [];
+        this.state.eventDiscardPile = [];
+        this.state.turnsSinceLastEvent = 0;
 
         // Create players
         for (let i = 0; i < playerCount; i++) {
@@ -53,6 +61,9 @@ const GameState = {
 
         // Deal initial cards to all players
         this.dealInitialCards();
+
+        // Initialize event deck
+        this.initializeEventDeck();
 
         this.log(`Game started with ${playerCount} players!`);
         this.log('The Republic begins. Will you rise to become Emperor?');
@@ -266,6 +277,13 @@ const GameState = {
         this.state.turn++;
         this.state.counter = Math.min(GameConfig.counterMaximum, this.state.counter + GameConfig.counterIncrementPerTurn);
         this.log(`Turn ${this.state.turn} begins`);
+
+        // Check if we need to draw/execute an event card
+        this.state.turnsSinceLastEvent++;
+        if (this.state.turnsSinceLastEvent >= GameConfig.eventCardDrawFrequency) {
+            this.drawAndExecuteEventCard();
+            this.state.turnsSinceLastEvent = 0;
+        }
     },
 
     // Check win condition
@@ -383,6 +401,122 @@ const GameState = {
             status: current >= required ? 'Stable' : 'At Risk',
             canConquer: current >= nextConquestRequired && unconquered.length > 0,
             nextProvince: unconquered.length > 0 ? unconquered[0].name : null
+        };
+    },
+
+    // Initialize event deck
+    initializeEventDeck() {
+        this.state.eventDeck = createEventDeck();
+        this.state.eventQueue = [];
+        this.state.eventDiscardPile = [];
+
+        // Fill the initial queue with face-down cards
+        this.replenishEventQueue();
+
+        this.log('Event deck initialized - the omens are set');
+    },
+
+    // Replenish event queue to maintain 5 cards
+    replenishEventQueue() {
+        while (this.state.eventQueue.length < GameConfig.eventCardQueueSize) {
+            if (this.state.eventDeck.length === 0) {
+                // Reshuffle discard pile into deck
+                if (this.state.eventDiscardPile.length > 0) {
+                    this.state.eventDeck = [...this.state.eventDiscardPile];
+                    this.state.eventDiscardPile = [];
+                    this.shuffleEventDeck();
+                    this.log('Event deck reshuffled');
+                } else {
+                    // No more cards available
+                    break;
+                }
+            }
+
+            if (this.state.eventDeck.length > 0) {
+                const card = this.state.eventDeck.pop();
+                card.faceUp = false; // Cards start face-down
+                this.state.eventQueue.push(card);
+            }
+        }
+    },
+
+    // Shuffle event deck
+    shuffleEventDeck() {
+        for (let i = this.state.eventDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.state.eventDeck[i], this.state.eventDeck[j]] =
+                [this.state.eventDeck[j], this.state.eventDeck[i]];
+        }
+    },
+
+    // Draw and execute the next event card from the queue
+    drawAndExecuteEventCard() {
+        if (this.state.eventQueue.length === 0) {
+            this.log('No event cards available');
+            return;
+        }
+
+        // Take the first card from the queue (FIFO)
+        const eventCard = this.state.eventQueue.shift();
+        eventCard.faceUp = true; // Reveal the card
+
+        this.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        this.log(`⚡ EVENT: ${eventCard.name}`);
+        this.log(`${eventCard.description}`);
+        this.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
+        // Execute the event
+        try {
+            eventCard.execute(this.state);
+        } catch (error) {
+            console.error('Error executing event card:', error);
+            this.log(`Error executing event: ${eventCard.name}`);
+        }
+
+        // Discard the event card
+        this.state.eventDiscardPile.push(eventCard);
+
+        // Replenish the queue
+        this.replenishEventQueue();
+    },
+
+    // Read the omens - reveal upcoming event cards
+    readOmens(playerId) {
+        const player = this.getPlayer(playerId);
+
+        // Check if player can afford it
+        if (player.gold < GameConfig.readOmensCost) {
+            return {
+                success: false,
+                message: `Not enough gold. Need ${GameConfig.readOmensCost} gold to read the omens.`
+            };
+        }
+
+        // Pay the cost
+        player.gold -= GameConfig.readOmensCost;
+
+        // Reveal upcoming cards (temporarily)
+        const revealedCards = [];
+        const revealCount = Math.min(GameConfig.readOmensRevealCount, this.state.eventQueue.length);
+
+        for (let i = 0; i < revealCount; i++) {
+            if (this.state.eventQueue[i]) {
+                this.state.eventQueue[i].faceUp = true;
+                revealedCards.push({
+                    position: i + 1,
+                    name: this.state.eventQueue[i].name,
+                    description: this.state.eventQueue[i].description,
+                    type: this.state.eventQueue[i].type
+                });
+            }
+        }
+
+        this.log(`${player.name} pays ${GameConfig.readOmensCost} gold to read the omens and glimpses ${revealCount} future events`);
+
+        return {
+            success: true,
+            message: `The omens reveal ${revealCount} upcoming events...`,
+            cards: revealedCards
         };
     }
 };

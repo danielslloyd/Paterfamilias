@@ -147,12 +147,21 @@ const Player = {
         if (turns < GameConfig.maxPaterfamiliasTurns) {
             return 0; // No natural death until cap
         }
-        return GameConfig.deathProbabilityPerTurn;
+        // Automatic death at max turns
+        return 1.0; // 100% death chance when reaching max turns
     },
 
     // Check for death
     checkDeath(player) {
-        const probability = this.calculateDeathProbability(player.paterfamilias.turnsAsPaterfamilias);
+        const turns = player.paterfamilias.turnsAsPaterfamilias;
+
+        // Automatic death at max turns
+        if (turns >= GameConfig.maxPaterfamiliasTurns) {
+            return true;
+        }
+
+        // Otherwise use probability (currently 0 before max)
+        const probability = this.calculateDeathProbability(turns);
         return Math.random() < probability;
     },
 
