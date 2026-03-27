@@ -246,6 +246,23 @@ const Actions = {
         }
     },
 
+    // Read the Omens - reveal upcoming event cards
+    readOmens(player, gameState) {
+        const result = GameState.readOmens(player.id);
+
+        if (!result.success) {
+            GameState.log(result.message);
+            return false;
+        }
+
+        GameState.log(`🔮 ${player.name} reads the omens...`);
+        result.cards.forEach(card => {
+            GameState.log(`  Position ${card.position}: "${card.name}" - ${card.description}`);
+        });
+
+        return true;
+    },
+
     // Phase 4: Imperial Actions
     setTaxRate(emperor, newRate, gameState) {
         if (gameState.state.emperorId !== emperor.id) {
