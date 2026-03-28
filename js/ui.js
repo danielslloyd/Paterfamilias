@@ -532,8 +532,7 @@ const UI = {
         // Discard button is only enabled if:
         // 1. A card is selected
         // 2. Card has not been discarded yet
-        // 3. A card has already been played this turn (enforcing play>discard order)
-        discardBtn.disabled = this.selectedCardIndex === -1 || player.cardDiscarded || !player.cardPlayed;
+        discardBtn.disabled = this.selectedCardIndex === -1 || player.cardDiscarded;
     },
 
     // Render imperial section

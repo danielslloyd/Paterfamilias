@@ -102,7 +102,7 @@ window.CardDefinitions = CardDefinitions;
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     // Press 'Enter' to end turn
-    if (e.key === 'Enter' && !document.querySelector('.modal')) {
+    if (e.key === 'Enter' && document.getElementById('modal-overlay').style.display !== 'flex') {
         const endTurnBtn = document.getElementById('btn-end-turn');
         if (!endTurnBtn.disabled) {
             endTurnBtn.click();
