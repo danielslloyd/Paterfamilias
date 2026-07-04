@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roman Dynasty Game</title>
+    <title>Paterfamilias — A Roman Dynasty Game</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div id="game-container">
         <!-- Header -->
         <header id="game-header">
-            <h1>Roman Dynasty Game</h1>
+            <h1>Paterfamilias</h1>
             <div id="game-info">
                 <span id="turn-display">Turn: 1</span>
                 <span id="emperor-display">Republic</span>
+                <span id="threshold-display"></span>
             </div>
             <!-- Virtue/Popularity Balance Bar -->
             <div id="balance-bar-container">
                 <div class="balance-labels">
                     <span class="balance-label-left">Popularity</span>
+                    <span id="counter-value"></span>
                     <span class="balance-label-right">Virtue</span>
                 </div>
                 <div id="balance-bar">
@@ -53,17 +55,33 @@
                         <span class="resource-label">Estates:</span>
                         <span id="player-estates">0</span>
                     </div>
+                    <div class="resource">
+                        <span class="resource-label">Income / turn:</span>
+                        <span id="player-income">0</span>
+                    </div>
                 </div>
 
                 <!-- Family -->
                 <div id="family-info">
-                    <h3>Family</h3>
+                    <h3>Household</h3>
                     <div id="family-display">
-                        <div id="mother-info"></div>
                         <div id="paterfamilias-info"></div>
                         <div id="wife-info"></div>
+                        <div id="mother-info"></div>
                         <div id="children-info"></div>
                     </div>
+                </div>
+
+                <!-- Family Obligations Web -->
+                <div id="obligations-panel">
+                    <h3>Web of Obligations</h3>
+                    <div id="obligations-info"></div>
+                </div>
+
+                <!-- Active Effects -->
+                <div id="effects-panel">
+                    <h3>Active Effects</h3>
+                    <div id="effects-info"></div>
                 </div>
 
                 <!-- Dynasty Progress -->
@@ -77,12 +95,17 @@
             <main id="game-content">
                 <!-- Action Phase -->
                 <section id="action-section">
-                    <h2>Actions</h2>
+                    <h2>Actions <span id="action-status" class="phase-hint"></span></h2>
                     <div id="action-buttons">
-                        <button class="action-btn" data-action="contribute-military">Contribute to Military</button>
-                        <button class="action-btn" data-action="economic-development">Economic Development</button>
-                        <button class="action-btn" data-action="political-maneuvering">Political Maneuvering</button>
-                        <button class="action-btn" data-action="marriage-negotiation">Marriage Negotiation</button>
+                        <button class="action-btn" data-action="contribute-military" title="Pay gold to strengthen Rome's legions. +2 Auctoritas, +1 Support.">Contribute to Military</button>
+                        <button class="action-btn" data-action="economic-development" title="Improve your lowest-yield estate permanently.">Economic Development</button>
+                        <button class="action-btn" data-action="political-maneuvering" title="Work the Senate. +3 Auctoritas.">Political Maneuvering</button>
+                        <button class="action-btn" data-action="marriage-negotiation" title="Negotiate a marriage with another family.">Marriage Negotiation</button>
+                        <button class="action-btn special-btn" data-action="plot-coup" id="btn-plot-coup" title="Move against the Emperor. High risk — failure means death.">⚔️ Plot Coup</button>
+                    </div>
+                    <div id="free-actions">
+                        <button id="btn-declare-emperor" class="declare-btn" style="display:none;">👑 Declare Yourself Emperor</button>
+                        <button id="btn-divorce" class="minor-btn" style="display:none;">Divorce</button>
                     </div>
                 </section>
 
@@ -90,22 +113,22 @@
                 <section id="event-section">
                     <h2>The Omens</h2>
                     <div id="event-queue-display"></div>
-                    <button id="btn-read-omens" class="action-btn">🔮 Read the Omens (5 Gold)</button>
+                    <button id="btn-read-omens" class="action-btn">🔮 Read the Omens</button>
                 </section>
 
                 <!-- Card Section -->
                 <section id="card-section">
-                    <h2>Your Hand</h2>
+                    <h2>Your Hand <span class="phase-hint">(play up to 1 per turn; discarding is optional)</span></h2>
                     <div id="hand-cards"></div>
                     <div id="card-controls">
-                        <button id="btn-play-card" disabled>1. Play Card</button>
-                        <button id="btn-discard-card" disabled>2. Discard Card</button>
+                        <button id="btn-play-card" disabled>Play Card</button>
+                        <button id="btn-discard-card" disabled>Discard Card</button>
                     </div>
                 </section>
 
                 <!-- Imperial Actions (Emperor Only) -->
                 <section id="imperial-section" style="display: none;">
-                    <h2>Imperial Actions</h2>
+                    <h2>👑 Imperial Actions</h2>
                     <div id="imperial-buttons">
                         <button class="imperial-btn" data-action="set-tax-rate">Set Tax Rate</button>
                         <button class="imperial-btn" data-action="launch-campaign">Launch Campaign</button>
@@ -124,14 +147,16 @@
             <aside id="right-sidebar">
                 <!-- Military Status -->
                 <section id="military-status">
-                    <h3>Military Status</h3>
+                    <h3>Legions of Rome</h3>
                     <div id="military-info"></div>
                 </section>
 
-                <!-- Provinces -->
-                <section id="provinces-section">
-                    <h3>Empire Map</h3>
-                    <div id="provinces-list"></div>
+                <!-- Empire Map -->
+                <section id="map-section">
+                    <h3>The Roman Empire</h3>
+                    <div id="empire-map-container"></div>
+                    <div id="map-legend"></div>
+                    <div id="province-detail"></div>
                 </section>
             </aside>
         </div>
@@ -151,7 +176,8 @@
     <!-- Game Setup Modal -->
     <div id="setup-modal" class="modal">
         <div class="modal-dialog">
-            <h2>New Game Setup</h2>
+            <h2>Paterfamilias</h2>
+            <p class="setup-blurb">Noble families bound by marriage compete to seat four successive emperors. Your wife and mother come from rival houses — their families collect your tribute, share your glory, and shield you from the knife. Choose your kin wisely.</p>
             <div class="form-group">
                 <label for="player-count">Number of Players:</label>
                 <select id="player-count">
@@ -164,12 +190,13 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts (dependency order matters) -->
     <script src="js/game-config.js"></script>
     <script src="js/event-card.js"></script>
     <script src="js/game-state.js"></script>
     <script src="js/player.js"></script>
     <script src="js/card.js"></script>
+    <script src="js/map.js"></script>
     <script src="js/actions.js"></script>
     <script src="js/succession.js"></script>
     <script src="js/marriage.js"></script>

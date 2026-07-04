@@ -1,121 +1,96 @@
-# Roman Dynasty Game - Prototype
+# Paterfamilias — A Roman Dynasty Game
 
-A hot-seat multiplayer strategy game set in Ancient Rome where players control powerful families competing to establish a dynasty by producing 4 successive emperors.
+A hot-seat multiplayer strategy game set in Ancient Rome. 3–4 players lead noble families bound to each other by marriage, competing to seat **4 successive emperors** — while the web of family obligations pulls their fates together and the empire itself strains under the weight of their ambitions.
 
 ## How to Play
 
 1. **Start the Game**: Open `index.html` in a web browser
-2. **Setup**: Choose the number of players (3-4) and enter family names
-3. **Game Flow**: Each player takes turns going through the following phases:
-   - **Income & Obligations**: Automatically collect estate income and pay taxes/tribute
-   - **Core Action**: Choose ONE action (Contribute to Military, Economic Development, Political Maneuvering, or Marriage Negotiation)
-   - **Card Play**: Optionally play 1 card from your hand
-   - **Card Management**: Must discard 1 card, then draw 2 cards
-   - **Imperial Actions**: If you're the Emperor, you can take special actions
-   - **End Turn**: Click "End Turn" to finish your turn
+2. **Setup**: Choose the number of players (3–4) and enter family names
+3. **Each turn**:
+   - **Income & Obligations** (automatic): estates pay gold; the Emperor's tax, your mother's family, and your wife's family each take their cut
+   - **Core Action**: choose ONE — Contribute to Military, Economic Development, Political Maneuvering, Marriage Negotiation, or Plot a Coup
+   - **Card Play**: optionally play 1 card (discarding is optional; you draw 2 at end of turn, hand cap 8)
+   - **Imperial Actions**: the Emperor may also set taxes, launch campaigns, distribute estates, and bend Rome's institutions
+   - **End Turn**: your paterfamilias ages — and may die
+
+## The Family Web
+
+This is the heart of the game:
+
+- Your **wife** and your **mother** each come from a *different rival family*. Their traits work for your household every turn, and their families collect a percentage of your income as **tribute**.
+- **Generations turn the web**: when your paterfamilias dies, his widow becomes the new pater's **mother** — her family tie (and its tribute rate) carries into the next generation. The heir starts **unmarried** and must negotiate a new marriage, re-weaving the web.
+- **Marriage is negotiated between players**: dowry paid up front, tribute rate haggled (5–25%), and the bride's traits are worth fighting over. The rate you agree to today is the rate your heir's mother-tie inherits tomorrow.
+- **Kinship cuts both ways**: kin can't be raided, denounced, or blackmailed; kin of the Emperor bask in his glory (+1 Support per turn) and rally to his defense in coups — but they're tainted when he falls, and raising a blade against kin is *impiety*.
+- **Women never die** — a divorced or widowed wife returns to her family's household, traits intact, ready to be married again.
+
+### Female Traits (the powers behind the throne)
+
+| Trait | Effect |
+|---|---|
+| Financial Acumen | +20% estate income |
+| Political Savvy | +1 Auctoritas / turn |
+| Beloved by People | +1 Popular Support / turn |
+| Fertile | +15% chance of a child each turn |
+| Pious | Religious cards & Reading the Omens cost less |
+| Influential | +10 coup defense, harder to assassinate |
+| Scheming | Cheaper intrigue cards, +15 coup attack, deadlier assassins |
+
+## The Empire (and its destabilization)
+
+- **The map** shows the Mediterranean; conquest follows the historical order of Roman expansion (Sicilia 241 BC → Dacia AD 106). Click provinces for estate ownership.
+- **The legions are a shared good**: every conquered province demands upkeep; anyone may contribute (and gain standing for it), but the free-rider problem is real.
+- **Ambition has a price**: every succession, coup, and assassination drains the legions. If they fall below what the empire needs, the newest province **revolts** — and every family holding estates there loses them. The more powerful men vie for the throne, the more the empire rots.
+
+## Becoming Emperor
+
+- The **counter** (1–100) rises each turn, shifting succession from Popularity toward Virtue — the Republic hardens into Empire.
+- Once your Auctoritas reaches the **imperial threshold** (30, rising with the counter), you may **declare yourself Emperor**. If nobody dares by counter 40, the Senate acclaims someone.
+- On an Emperor's death: succession score = (Popularity-weight × Support) + (Virtue-weight × Auctoritas). The reigning dynasty's family gets a **legitimacy bonus** (×1.25). Highest eligible score takes the purple — dynasties continue or break.
+- **Coups**: a core action with visible odds. Failure = your paterfamilias is executed. Success = the Emperor dies and the succession formula decides — *not necessarily in your favor*.
+- Emperors **age faster** ("the purple weighs heavy") and wear a target on their back.
 
 ## Win Condition
 
-Be the first family to produce **4 successive emperors**. If another family interrupts your succession, your counter resets!
-
-## Key Mechanics
-
-### Resources
-- **Gold**: Used for everything - cards, actions, bribes
-- **Popular Support**: Helps you become Emperor early in the game
-- **Auctoritas (Virtue)**: Helps you become Emperor later in the game
-
-### The Counter System
-- The game starts at Counter = 1 (100% Popularity-based succession)
-- Each turn, the Counter increases by 1 (max 100)
-- As the Counter increases, succession favors Auctoritas over Popular Support
-- This creates a natural transition from Republic → Empire
-
-### Family Web
-- Each player is connected to 2 other players through marriage (wife's family and mother's family)
-- You pay tribute to both families
-- Women have powerful traits that affect your family
-
-### Cards
-- 25 unique cards across 5 categories: Military, Political, Intrigue, Economic, Religious
-- Each card costs gold (and sometimes other resources)
-- Cards can dramatically change the game state
-
-### Becoming Emperor
-- **First Emperor**: When Counter × 0.5 ≤ Your Auctoritas, you can become Emperor
-- **Succession**: When Emperor dies, succession score = (Popularity% × Popular Support) + (Virtue% × Auctoritas)
-- **Dynasty Counter**: Same family = increment counter; Different family = reset to 1
-
-## Tips
-
-1. **Early Game**: Focus on Popular Support - it's easier to become Emperor
-2. **Mid Game**: Balance both resources as the counter rises
-3. **Late Game**: Auctoritas becomes more important
-4. **Marriage**: Don't neglect your wife - her traits are powerful!
-5. **Children**: Sons become heirs, daughters can be married for alliances
-6. **Estates**: More estates = more gold = more power
-7. **Watch the Counter**: It tells you what strategy to pursue
+First family to **4 successive emperors**. An interrupted succession resets your count.
 
 ## Keyboard Shortcuts
 
 - **Enter**: End turn
-- **Ctrl+S**: Save game
-- **Ctrl+L**: Load game
+- **Ctrl+S**: Save game — **Ctrl+L**: Load game (auto-saves every 30s)
 
-## Game Features
+## Technical Details
 
-✅ Hot-seat multiplayer (3-4 players)
-✅ All 25 cards implemented
-✅ Marriage system with family connections
-✅ Imperial succession with dynasty tracking
-✅ 4 core actions per turn
-✅ Age and death mechanics
-✅ Estate management and income
-✅ Counter system (Republic → Empire transition)
-✅ Auto-save every 30 seconds
+- Vanilla JavaScript (ES6+), HTML5, CSS3 — zero dependencies, no build step
+- All state in memory, persisted to localStorage
+- The empire map is inline SVG (`js/map.js`)
 
 ## File Structure
 
 ```
-game/
 ├── index.html           # Main game interface
-├── css/
-│   └── styles.css       # All styling
-├── js/
-│   ├── game-state.js    # Core game state management
-│   ├── player.js        # Player class and logic
-│   ├── card.js          # All 25 card definitions and effects
-│   ├── actions.js       # Turn actions and mechanics
-│   ├── succession.js    # Imperial succession logic
-│   ├── marriage.js      # Marriage negotiation system
-│   ├── ui.js            # UI rendering and updates
-│   └── main.js          # Game initialization and loop
-└── README.md            # This file
+├── css/styles.css       # All styling
+└── js/
+    ├── game-config.js   # All balance numbers (tune here)
+    ├── game-state.js    # State, decks, provinces, save/load
+    ├── player.js        # Family, traits, aging, generational succession
+    ├── card.js          # 25 card definitions (×2 copies)
+    ├── event-card.js    # 22 empire event cards
+    ├── map.js           # SVG map of the empire
+    ├── succession.js    # Imperial succession, dynasty, coups
+    ├── marriage.js      # Marriage negotiation, dowry, divorce
+    ├── actions.js       # Turn actions, income & tribute flow
+    ├── ui.js            # Rendering, dialogs, hot-seat handoff
+    └── main.js          # Init, shortcuts, auto-save
 ```
 
-## Technical Details
-
-- **Technology**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **No dependencies**: Runs entirely in the browser
-- **State Management**: All game state in memory (saved to localStorage)
-- **Architecture**: Modular design with clear separation of concerns
-
-## Future Enhancements (Not in MVP)
+## Future Enhancements
 
 - AI players
-- Animations and sound effects
 - Online multiplayer
-- Province map visualization
-- Senate voting mechanics
-- Praetorian Guard institution
+- Praetorian Guard and other institutions
 - General/Priestess roles for children
-- Campaign targeting specific provinces
-- More complex coup mechanics
-
-## Credits
-
-Based on the game design document for a Roman Dynasty strategy game. Prototype built with Claude Code.
+- Senate voting with real stakes
 
 ---
 
-**Enjoy building your dynasty and may the gods favor your family!** 🏛️
+**May the gods favor your family — and may your in-laws stay loyal.** 🏛️
