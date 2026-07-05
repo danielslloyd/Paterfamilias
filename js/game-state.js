@@ -1,30 +1,26 @@
 // Game State Management
 const GameState = {
-    // Game state object
     state: {
         turn: 1,
-        counter: 1, // Virtue/Popularity counter (1-100)
-        emperorId: null, // null during Republic, playerId when Empire
+        counter: 1,
+        emperorId: null,
         taxRate: 0.10,
         players: [],
         provinces: [],
         cardDeck: [],
         discardPile: [],
-        eventDeck: [], // Separate deck for event cards
-        eventQueue: [], // Face-down event cards (5 at a time)
-        eventDiscardPile: [], // Discarded event cards
-        turnsSinceLastEvent: 0, // Track when to execute next event
+        eventDeck: [],
+        eventQueue: [],
+        eventDiscardPile: [],
+        turnsSinceLastEvent: 0,
         currentPlayerIndex: 0,
-        dynastyCounter: {
-            familyId: null,
-            count: 0
-        },
+        dynastyCounter: { familyId: null, count: 0 },
+        usedNames: [],
         gameLog: [],
-        phase: 'setup', // setup, income, action, card, imperial, end
-        militaryStrength: 100 // Empire-wide military strength - will be set by init()
+        phase: 'setup',
+        militaryStrength: 60
     },
 
-    // Initialize game state
     init(playerCount, playerNames) {
         this.state.turn = 1;
         this.state.counter = GameConfig.initialCounter;
@@ -33,6 +29,7 @@ const GameState = {
         this.state.players = [];
         this.state.currentPlayerIndex = 0;
         this.state.dynastyCounter = { familyId: null, count: 0 };
+        this.state.usedNames = [];
         this.state.gameLog = [];
         this.state.phase = 'income';
         this.state.militaryStrength = GameConfig.initialMilitaryStrength;
@@ -40,65 +37,45 @@ const GameState = {
         this.state.eventQueue = [];
         this.state.eventDiscardPile = [];
         this.state.turnsSinceLastEvent = 0;
+        this.state.discardPile = [];
 
-        // Create players
         for (let i = 0; i < playerCount; i++) {
             const player = Player.create(i, playerNames[i]);
+            player.paterfamilias.name = this.generateName('male');
             this.state.players.push(player);
         }
 
-        // Assign wives and mothers (ensuring no conflicts)
         this.assignWivesAndMothers();
-
-        // Initialize provinces
+        this.createStartingChildren();
         this.initializeProvinces();
-
-        // Distribute starting estates
         this.distributeStartingEstates();
-
-        // Initialize card deck
         this.initializeCardDeck();
-
-        // Deal initial cards to all players
         this.dealInitialCards();
-
-        // Initialize event deck
         this.initializeEventDeck();
 
-        this.log(`Game started with ${playerCount} players!`);
-        this.log('The Republic begins. Will you rise to become Emperor?');
+        this.log(`The game begins: ${playerCount} great families vie for the destiny of Rome.`);
+        this.log(`Study your marriage ties — your fate is bound to your kin.`);
     },
 
-    // Assign wives and mothers to all players
+    // Wives and mothers come from other families, weaving the web of
+    // obligations. With 3 players this always forms a complete triangle.
     assignWivesAndMothers() {
         const playerCount = this.state.players.length;
 
-        // For each player, assign wife and mother from different families
         this.state.players.forEach((player, idx) => {
-            // Assign wife from a different family (not own, not mother's)
-            const possibleWifeFamilies = [];
+            const others = [];
             for (let i = 0; i < playerCount; i++) {
-                if (i !== idx) {
-                    possibleWifeFamilies.push(i);
-                }
+                if (i !== idx) others.push(i);
             }
-            const wifeFamily = possibleWifeFamilies[Math.floor(Math.random() * possibleWifeFamilies.length)];
-
-            // Assign mother from a different family (not own, not wife's)
-            const possibleMotherFamilies = [];
-            for (let i = 0; i < playerCount; i++) {
-                if (i !== idx && i !== wifeFamily) {
-                    possibleMotherFamilies.push(i);
-                }
-            }
-            const motherFamily = possibleMotherFamilies[Math.floor(Math.random() * possibleMotherFamilies.length)];
+            const wifeFamily = others[Math.floor(Math.random() * others.length)];
+            const motherCandidates = others.filter(i => i !== wifeFamily);
+            const motherFamily = motherCandidates[Math.floor(Math.random() * motherCandidates.length)];
 
             player.wife = {
                 name: this.generateName('female'),
                 fromFamily: wifeFamily,
                 traits: this.selectRandomTraits(GameConfig.femaleTraits, 2)
             };
-
             player.mother = {
                 name: this.generateName('female'),
                 fromFamily: motherFamily,
@@ -107,28 +84,82 @@ const GameState = {
         });
     },
 
-    // Generate random Roman names
-    generateName(gender) {
-        if (gender === 'male') {
-            return GameConfig.maleNames[Math.floor(Math.random() * GameConfig.maleNames.length)];
-        } else {
-            return GameConfig.femaleNames[Math.floor(Math.random() * GameConfig.femaleNames.length)];
-        }
+    // Each family starts with a son and a daughter approaching adulthood,
+    // so succession and marriage politics begin early.
+    createStartingChildren() {
+        this.state.players.forEach(player => {
+            const sonAge = GameConfig.startingSonAgeMin + Math.floor(Math.random() * (GameConfig.startingSonAgeRange + 1));
+            const daughterAge = GameConfig.startingDaughterAgeMin + Math.floor(Math.random() * (GameConfig.startingDaughterAgeRange + 1));
+
+            player.children.push({
+                name: this.generateName('male'),
+                age: sonAge,
+                gender: 'male',
+                traits: this.selectRandomTraits(GameConfig.maleTraits, Math.random() < GameConfig.childTraitCountBonusChance ? 2 : 1)
+            });
+            player.children.push({
+                name: this.generateName('female'),
+                age: daughterAge,
+                gender: 'female',
+                traits: this.selectRandomTraits(GameConfig.femaleTraits, Math.random() < GameConfig.childTraitCountBonusChance ? 2 : 1)
+            });
+        });
     },
 
-    // Select random traits
+    // --- Kinship helpers (the family web) ---------------------------------
+
+    // Family ids this player is tied to through wife and mother
+    getKinFamilyIds(player) {
+        const ids = [];
+        if (player.wife && player.wife.fromFamily !== player.id) ids.push(player.wife.fromFamily);
+        if (player.mother && player.mother.fromFamily !== player.id && !ids.includes(player.mother.fromFamily)) {
+            ids.push(player.mother.fromFamily);
+        }
+        return ids;
+    },
+
+    // Two families are kin if either's wife/mother comes from the other
+    areKin(a, b) {
+        if (!a || !b || a.id === b.id) return false;
+        return this.getKinFamilyIds(a).includes(b.id) || this.getKinFamilyIds(b).includes(a.id);
+    },
+
+    // --- Names --------------------------------------------------------------
+
+    generateName(gender) {
+        const pool = gender === 'male' ? GameConfig.maleNames : GameConfig.femaleNames;
+        const available = pool.filter(n => !this.state.usedNames.includes(n));
+        let name;
+        if (available.length > 0) {
+            name = available[Math.floor(Math.random() * available.length)];
+        } else {
+            // Pool exhausted: reuse with an epithet
+            const base = pool[Math.floor(Math.random() * pool.length)];
+            name = `${base} the Younger`;
+            if (this.state.usedNames.includes(name)) {
+                name = `${base} ${['Minor', 'Novus', 'Secundus', 'Tertius'][Math.floor(Math.random() * 4)]}`;
+            }
+        }
+        this.state.usedNames.push(name);
+        // Free old names once the ledger gets long
+        if (this.state.usedNames.length > 60) {
+            this.state.usedNames = this.state.usedNames.slice(-30);
+        }
+        return name;
+    },
+
     selectRandomTraits(traitList, count) {
         const shuffled = [...traitList].sort(() => Math.random() - 0.5);
         return shuffled.slice(0, count);
     },
 
-    // Initialize provinces
+    // --- Provinces ------------------------------------------------------------
+
     initializeProvinces() {
         this.state.provinces = [];
         let estateId = 0;
 
         GameConfig.provinces.forEach((prov, idx) => {
-            // Calculate estate count (Italia uses player count)
             const estateCount = prov.estateCount === null
                 ? this.state.players.length * GameConfig.startingEstatesPerPlayer
                 : prov.estateCount;
@@ -148,24 +179,21 @@ const GameState = {
                 name: prov.name,
                 estates: estates,
                 conquered: prov.conquered,
-                year: prov.year,
+                yearLabel: prov.yearLabel,
                 conquestTurn: prov.conquered ? 0 : null
             });
         });
     },
 
-    // Distribute starting estates
     distributeStartingEstates() {
         const italia = this.state.provinces[0];
         const estates = [...italia.estates];
 
-        // Shuffle estates
         for (let i = estates.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [estates[i], estates[j]] = [estates[j], estates[i]];
         }
 
-        // Distribute starting estates to each player
         this.state.players.forEach((player, idx) => {
             for (let i = 0; i < GameConfig.startingEstatesPerPlayer; i++) {
                 const estate = estates[idx * GameConfig.startingEstatesPerPlayer + i];
@@ -175,13 +203,13 @@ const GameState = {
         });
     },
 
-    // Initialize card deck
+    // --- Cards -------------------------------------------------------------
+
     initializeCardDeck() {
-        this.state.cardDeck = [...CardDefinitions.getAllCards()];
+        this.state.cardDeck = CardDefinitions.getAllCards();
         this.shuffleDeck();
     },
 
-    // Shuffle deck
     shuffleDeck() {
         for (let i = this.state.cardDeck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -190,7 +218,6 @@ const GameState = {
         }
     },
 
-    // Deal initial cards
     dealInitialCards() {
         this.state.players.forEach(player => {
             for (let i = 0; i < GameConfig.startingHandSize; i++) {
@@ -199,16 +226,14 @@ const GameState = {
         });
     },
 
-    // Draw a card for a player
     drawCard(playerId) {
         const player = this.getPlayer(playerId);
 
         if (this.state.cardDeck.length === 0) {
-            // Reshuffle discard pile into deck
             this.state.cardDeck = [...this.state.discardPile];
             this.state.discardPile = [];
             this.shuffleDeck();
-            this.log('Card deck reshuffled');
+            if (this.state.cardDeck.length > 0) this.log('The card deck is reshuffled.');
         }
 
         if (this.state.cardDeck.length > 0 && player.hand.length < GameConfig.maxHandSize) {
@@ -217,38 +242,34 @@ const GameState = {
         }
     },
 
-    // Get player by ID
+    // --- Lookups --------------------------------------------------------------
+
     getPlayer(playerId) {
         return this.state.players.find(p => p.id === playerId);
     },
 
-    // Get current player
     getCurrentPlayer() {
         return this.state.players[this.state.currentPlayerIndex];
     },
 
-    // Get Emperor
     getEmperor() {
         if (this.state.emperorId === null) return null;
         return this.getPlayer(this.state.emperorId);
     },
 
-    // Add to game log
     log(message) {
-        const logEntry = {
+        this.state.gameLog.unshift({
             turn: this.state.turn,
             message: message,
             timestamp: Date.now()
-        };
-        this.state.gameLog.unshift(logEntry);
-
-        // Keep only last N entries
+        });
         if (this.state.gameLog.length > GameConfig.maxLogEntries) {
             this.state.gameLog = this.state.gameLog.slice(0, GameConfig.maxLogEntries);
         }
     },
 
-    // Calculate counter weights
+    // --- Counter and succession math ---------------------------------------
+
     getCounterWeights() {
         const counter = this.state.counter;
         return {
@@ -257,28 +278,44 @@ const GameState = {
         };
     },
 
-    // Check imperial threshold
-    checkImperialThreshold(auctoritas) {
-        return auctoritas >= (this.state.counter * 0.5);
+    // Auctoritas needed to claim or hold the throne. The floor prevents
+    // trivially-early emperors; late game the counter drives it up.
+    getImperialThreshold() {
+        return Math.max(GameConfig.imperialMinAuctoritas, Math.ceil(this.state.counter * 0.5));
     },
 
-    // Advance to next player
+    checkImperialThreshold(auctoritas) {
+        return auctoritas >= this.getImperialThreshold();
+    },
+
+    // --- Turn flow ----------------------------------------------------------
+
     nextPlayer() {
         this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
-
-        // If we've cycled through all players, increment turn
         if (this.state.currentPlayerIndex === 0) {
             this.nextTurn();
         }
     },
 
-    // Advance to next turn
     nextTurn() {
         this.state.turn++;
         this.state.counter = Math.min(GameConfig.counterMaximum, this.state.counter + GameConfig.counterIncrementPerTurn);
-        this.log(`Turn ${this.state.turn} begins`);
+        this.log(`— Turn ${this.state.turn} begins —`);
 
-        // Check if we need to draw/execute an event card
+        // If the Republic drags on too long, the Senate forces the issue
+        if (this.state.emperorId === null && this.state.counter >= GameConfig.senateAcclamationCounter) {
+            const eligible = this.state.players
+                .filter(p => this.checkImperialThreshold(p.auctoritas))
+                .sort((a, b) => b.auctoritas - a.auctoritas);
+            if (eligible.length > 0) {
+                const chosen = eligible[0];
+                this.state.emperorId = chosen.id;
+                this.state.dynastyCounter.familyId = chosen.id;
+                this.state.dynastyCounter.count = 1;
+                this.log(`👑 The Senate, desperate for order, acclaims ${chosen.paterfamilias.name} of the ${chosen.name} as Emperor!`);
+            }
+        }
+
         this.state.turnsSinceLastEvent++;
         if (this.state.turnsSinceLastEvent >= GameConfig.eventCardDrawFrequency) {
             this.drawAndExecuteEventCard();
@@ -286,33 +323,32 @@ const GameState = {
         }
     },
 
-    // Check win condition
     checkWinCondition() {
         if (this.state.dynastyCounter.count >= GameConfig.dynastyWinThreshold) {
-            const winner = this.getPlayer(this.state.dynastyCounter.familyId);
-            this.log(`${winner.name} has won the game with ${GameConfig.dynastyWinThreshold} successive emperors!`);
-            return winner;
+            return this.getPlayer(this.state.dynastyCounter.familyId);
         }
         return null;
     },
 
-    // Save game state to localStorage
+    // --- Save / Load -------------------------------------------------------
+    // Cards and events carry functions that JSON drops; rehydrate on load.
+
     save() {
         try {
             localStorage.setItem('romanDynastyGame', JSON.stringify(this.state));
-            this.log('Game saved');
+            this.log('Game saved.');
         } catch (e) {
             console.error('Failed to save game:', e);
         }
     },
 
-    // Load game state from localStorage
     load() {
         try {
             const saved = localStorage.getItem('romanDynastyGame');
             if (saved) {
                 this.state = JSON.parse(saved);
-                this.log('Game loaded');
+                this.rehydrate();
+                this.log('Game loaded.');
                 return true;
             }
         } catch (e) {
@@ -321,76 +357,82 @@ const GameState = {
         return false;
     },
 
-    // Calculate required military strength
+    rehydrate() {
+        const fixCards = arr => arr.map(c => CardDefinitions.rehydrate(c));
+        this.state.cardDeck = fixCards(this.state.cardDeck || []);
+        this.state.discardPile = fixCards(this.state.discardPile || []);
+        this.state.players.forEach(p => { p.hand = fixCards(p.hand || []); });
+
+        const fixEvents = arr => arr.map(c => rehydrateEventCard(c));
+        this.state.eventDeck = fixEvents(this.state.eventDeck || []);
+        this.state.eventQueue = fixEvents(this.state.eventQueue || []);
+        this.state.eventDiscardPile = fixEvents(this.state.eventDiscardPile || []);
+        if (!this.state.usedNames) this.state.usedNames = [];
+    },
+
+    // --- Military and conquest -----------------------------------------------
+
     getRequiredMilitaryStrength() {
         const conqueredCount = this.state.provinces.filter(p => p.conquered).length;
         return conqueredCount * GameConfig.militaryRequirementPerProvince;
     },
 
-    // Check for revolts
     checkForRevolts() {
         const required = this.getRequiredMilitaryStrength();
         const current = this.state.militaryStrength;
 
         if (current < required) {
-            // Military is too weak - revolt in most recently conquered province
             const conqueredProvinces = this.state.provinces
-                .filter(p => p.conquered && p.conquestTurn !== null)
+                .filter(p => p.conquered && p.conquestTurn !== null && p.conquestTurn > 0)
                 .sort((a, b) => b.conquestTurn - a.conquestTurn);
 
-            if (conqueredProvinces.length > 1) { // Don't lose Italia
+            if (conqueredProvinces.length > 0) {
                 const revoltProvince = conqueredProvinces[0];
                 revoltProvince.conquered = false;
                 revoltProvince.conquestTurn = null;
 
-                // Free all estates in revolted province
+                const losses = {};
                 revoltProvince.estates.forEach(estate => {
                     if (estate.ownerId !== null) {
                         const owner = this.getPlayer(estate.ownerId);
                         owner.estates = owner.estates.filter(e => e.id !== estate.id);
+                        losses[owner.name] = (losses[owner.name] || 0) + 1;
                         estate.ownerId = null;
                     }
                 });
 
-                this.log(`⚠️ REVOLT! ${revoltProvince.name} has broken free from Roman control due to insufficient military strength!`);
+                this.log(`🔥 REVOLT! ${revoltProvince.name} breaks free — the legions are too weak (${current}/${required}) to hold it!`);
+                Object.keys(losses).forEach(name => {
+                    this.log(`  The ${name} lose ${losses[name]} estate(s) in the uprising.`);
+                });
                 return true;
             }
         }
         return false;
     },
 
-    // Attempt to conquer next province
+    // Conquest proceeds in historical order (the provinces array)
     attemptConquest() {
-        const unconquered = this.state.provinces.filter(p => !p.conquered);
+        const nextProvince = this.state.provinces.find(p => !p.conquered);
+        if (!nextProvince) return false;
 
-        if (unconquered.length === 0) {
-            this.log('All provinces have been conquered!');
-            return false;
-        }
-
-        const nextProvince = unconquered[0];
         const required = this.getRequiredMilitaryStrength() + GameConfig.conquestExtraMilitaryRequired;
 
         if (this.state.militaryStrength >= required) {
-            // Success!
             nextProvince.conquered = true;
             nextProvince.conquestTurn = this.state.turn;
             this.state.militaryStrength -= GameConfig.conquestMilitaryCost;
 
-            this.log(`🏛️ CONQUEST! ${nextProvince.name} has been absorbed into the Roman Empire!`);
-            this.log(`${nextProvince.estates.length} new estates are now available for distribution.`);
+            this.log(`🏛️ CONQUEST! ${nextProvince.name} (${nextProvince.yearLabel}) falls to Rome — ${nextProvince.estates.length} estates await distribution.`);
             return true;
-        } else {
-            this.log(`Failed to conquer ${nextProvince.name}. Need ${required} military strength (current: ${this.state.militaryStrength})`);
-            return false;
         }
+        return false;
     },
 
-    // Get military status summary
     getMilitaryStatus() {
         const required = this.getRequiredMilitaryStrength();
         const current = this.state.militaryStrength;
-        const unconquered = this.state.provinces.filter(p => !p.conquered);
+        const nextProvince = this.state.provinces.find(p => !p.conquered);
         const nextConquestRequired = required + GameConfig.conquestExtraMilitaryRequired;
 
         return {
@@ -399,124 +441,84 @@ const GameState = {
             nextConquestRequired: nextConquestRequired,
             surplus: current - required,
             status: current >= required ? 'Stable' : 'At Risk',
-            canConquer: current >= nextConquestRequired && unconquered.length > 0,
-            nextProvince: unconquered.length > 0 ? unconquered[0].name : null
+            canConquer: current >= nextConquestRequired && !!nextProvince,
+            nextProvince: nextProvince ? nextProvince.name : null
         };
     },
 
-    // Initialize event deck
+    // --- Event deck ---------------------------------------------------------
+
     initializeEventDeck() {
         this.state.eventDeck = createEventDeck();
         this.state.eventQueue = [];
         this.state.eventDiscardPile = [];
-
-        // Fill the initial queue with face-down cards
         this.replenishEventQueue();
-
-        this.log('Event deck initialized - the omens are set');
+        this.log('The omens are cast — fate\'s queue is set.');
     },
 
-    // Replenish event queue to maintain 5 cards
     replenishEventQueue() {
         while (this.state.eventQueue.length < GameConfig.eventCardQueueSize) {
             if (this.state.eventDeck.length === 0) {
-                // Reshuffle discard pile into deck
                 if (this.state.eventDiscardPile.length > 0) {
-                    this.state.eventDeck = [...this.state.eventDiscardPile];
+                    this.state.eventDeck = shuffleArray(this.state.eventDiscardPile);
                     this.state.eventDiscardPile = [];
-                    this.shuffleEventDeck();
-                    this.log('Event deck reshuffled');
+                    this.log('The event deck is reshuffled.');
                 } else {
-                    // No more cards available
                     break;
                 }
             }
-
             if (this.state.eventDeck.length > 0) {
                 const card = this.state.eventDeck.pop();
-                card.faceUp = false; // Cards start face-down
+                card.faceUp = false;
                 this.state.eventQueue.push(card);
             }
         }
     },
 
-    // Shuffle event deck
-    shuffleEventDeck() {
-        for (let i = this.state.eventDeck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.state.eventDeck[i], this.state.eventDeck[j]] =
-                [this.state.eventDeck[j], this.state.eventDeck[i]];
-        }
-    },
-
-    // Draw and execute the next event card from the queue
     drawAndExecuteEventCard() {
-        if (this.state.eventQueue.length === 0) {
-            this.log('No event cards available');
-            return;
-        }
+        if (this.state.eventQueue.length === 0) return;
 
-        // Take the first card from the queue (FIFO)
         const eventCard = this.state.eventQueue.shift();
-        eventCard.faceUp = true; // Reveal the card
+        eventCard.faceUp = true;
 
-        this.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        this.log(`⚡ EVENT: ${eventCard.name}`);
-        this.log(`${eventCard.description}`);
-        this.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        this.log(`⚡ EVENT: ${eventCard.name} — ${eventCard.description}`);
 
-        // Execute the event
         try {
             eventCard.execute(this.state);
         } catch (error) {
             console.error('Error executing event card:', error);
-            this.log(`Error executing event: ${eventCard.name}`);
+            this.log(`(The event ${eventCard.name} fizzles mysteriously.)`);
         }
 
-        // Discard the event card
         this.state.eventDiscardPile.push(eventCard);
-
-        // Replenish the queue
         this.replenishEventQueue();
     },
 
-    // Read the omens - reveal upcoming event cards
     readOmens(playerId) {
         const player = this.getPlayer(playerId);
+        let cost = GameConfig.readOmensCost;
+        cost = Math.max(1, cost - Player.femaleTraitCount(player, 'Pious') * GameConfig.piousOmensDiscount);
 
-        // Check if player can afford it
-        if (player.gold < GameConfig.readOmensCost) {
-            return {
-                success: false,
-                message: `Not enough gold. Need ${GameConfig.readOmensCost} gold to read the omens.`
-            };
+        if (player.gold < cost) {
+            return { success: false, message: `Not enough gold — reading the omens costs ${cost}.` };
         }
 
-        // Pay the cost
-        player.gold -= GameConfig.readOmensCost;
+        player.gold -= cost;
 
-        // Reveal upcoming cards (temporarily)
         const revealedCards = [];
         const revealCount = Math.min(GameConfig.readOmensRevealCount, this.state.eventQueue.length);
 
         for (let i = 0; i < revealCount; i++) {
-            if (this.state.eventQueue[i]) {
-                this.state.eventQueue[i].faceUp = true;
-                revealedCards.push({
-                    position: i + 1,
-                    name: this.state.eventQueue[i].name,
-                    description: this.state.eventQueue[i].description,
-                    type: this.state.eventQueue[i].type
-                });
-            }
+            this.state.eventQueue[i].faceUp = true;
+            revealedCards.push({
+                position: i + 1,
+                name: this.state.eventQueue[i].name,
+                description: this.state.eventQueue[i].description,
+                type: this.state.eventQueue[i].type
+            });
         }
 
-        this.log(`${player.name} pays ${GameConfig.readOmensCost} gold to read the omens and glimpses ${revealCount} future events`);
-
-        return {
-            success: true,
-            message: `The omens reveal ${revealCount} upcoming events...`,
-            cards: revealedCards
-        };
+        this.log(`🔮 The ${player.name} pay ${cost} gold to read the omens.`);
+        return { success: true, cards: revealedCards };
     }
 };

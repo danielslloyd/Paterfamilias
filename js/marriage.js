@@ -1,202 +1,129 @@
 // Marriage Negotiation System
+// Marriages knit the family web: the groom's family pays a dowry and an
+// ongoing tribute; when the groom's heir succeeds, the wife becomes the
+// dowager mother and her family tie persists into the next generation.
 const Marriage = {
-    // Check if marriage is valid
     isValidMarriage(player, targetFamily) {
-        // Cannot marry own family
         if (player.id === targetFamily.id) {
-            return { valid: false, reason: 'Cannot marry own family' };
+            return { valid: false, reason: 'Cannot marry within your own family' };
         }
-
-        // Cannot marry mother's family
         if (player.mother && player.mother.fromFamily === targetFamily.id) {
-            return { valid: false, reason: 'Cannot marry mother\'s family' };
+            return { valid: false, reason: 'Cannot marry your mother\'s family' };
         }
-
-        // Cannot marry wife's family (for remarriage check)
-        if (player.wife && player.wife.fromFamily === targetFamily.id) {
-            return { valid: false, reason: 'Already married to this family' };
-        }
-
-        // Player must be unmarried to marry
         if (player.wife) {
             return { valid: false, reason: 'Already married' };
         }
-
         return { valid: true };
     },
 
-    // Get eligible families for marriage
+    // Families with marriageable daughters that this player could wed
     getEligibleFamilies(player, gameState) {
         const eligible = [];
-
-        // Player must be unmarried
-        if (player.wife) {
-            return eligible;
-        }
+        if (player.wife) return eligible;
 
         gameState.state.players.forEach(targetPlayer => {
             const validation = this.isValidMarriage(player, targetPlayer);
             if (validation.valid) {
-                // Get available daughters (unmarried daughters of marriageable age)
                 const daughters = targetPlayer.children.filter(c =>
                     c.gender === 'female' && c.age >= GameConfig.minimumMarriageAge
                 );
-
                 if (daughters.length > 0) {
-                    eligible.push({
-                        player: targetPlayer,
-                        daughters: daughters
-                    });
+                    eligible.push({ player: targetPlayer, daughters });
                 }
             }
         });
-
         return eligible;
     },
 
-    // Propose marriage
-    proposeMarriage(player, targetFamily, daughterIndex, tributeOffer, gameState) {
-        const validation = this.isValidMarriage(player, targetFamily);
-        if (!validation.valid) {
-            GameState.log(`${player.name} cannot marry ${targetFamily.name}: ${validation.reason}`);
-            return false;
-        }
-
-        const daughters = targetFamily.children.filter(c => c.gender === 'female' && c.age >= GameConfig.minimumMarriageAge);
-
-        if (daughterIndex < 0 || daughterIndex >= daughters.length) {
-            GameState.log(`Invalid daughter selection`);
-            return false;
-        }
-
-        const daughter = daughters[daughterIndex];
-
-        // Create marriage proposal object
-        const proposal = {
-            proposer: player,
-            targetFamily: targetFamily,
-            daughter: daughter,
-            tributeRate: tributeOffer, // Proposed tribute rate to wife's family
-            status: 'pending'
-        };
-
-        GameState.log(`${player.name} proposed marriage to ${daughter.name} of ${targetFamily.name}, offering ${Math.floor(tributeOffer * 100)}% tribute`);
-
-        return proposal;
+    // Dowry the groom pays the bride's family
+    getDowry(player, daughter) {
+        let dowry = GameConfig.baseDowry;
+        // A bride with more traits commands a higher price
+        dowry += Math.max(0, daughter.traits.length - 1) * 2;
+        return dowry;
     },
 
-    // Accept marriage proposal
-    acceptMarriage(proposal, counterTributeRate, gameState) {
-        const player = proposal.proposer;
-        const targetFamily = proposal.targetFamily;
-        const daughter = proposal.daughter;
+    // Conclude a marriage that both sides have agreed to
+    concludeMarriage(player, targetFamily, daughter, tributeRate, gameState) {
+        const dowry = this.getDowry(player, daughter);
 
-        // Remove daughter from children and make her the wife
-        targetFamily.children = targetFamily.children.filter(c => c.name !== daughter.name);
+        if (player.gold < dowry) {
+            GameState.log(`The ${player.name} cannot pay the ${dowry} gold dowry.`);
+            return false;
+        }
 
+        player.gold -= dowry;
+        targetFamily.gold += dowry;
+
+        targetFamily.children = targetFamily.children.filter(c => c !== daughter);
         player.wife = {
             name: daughter.name,
             fromFamily: targetFamily.id,
             traits: daughter.traits
         };
+        player.tributeRates.toWife = tributeRate;
 
-        player.tributeRates.toWife = proposal.tributeRate;
-
-        // Remove unmarried penalty if present
-        player.effects = player.effects.filter(e => e.type !== 'unmarried_penalty');
-
-        GameState.log(`${player.name} married ${daughter.name} of ${targetFamily.name}! Tribute rate: ${Math.floor(proposal.tributeRate * 100)}%`);
-
+        GameState.log(`⚭ ${player.paterfamilias.name} of the ${player.name} marries ${daughter.name} of the ${targetFamily.name}!`);
+        GameState.log(`Dowry of ${dowry} gold paid; ${Math.round(tributeRate * 100)}% tribute will flow to the ${targetFamily.name} each turn.`);
         return true;
     },
 
-    // Auto-accept with AI logic (for non-interactive turns)
-    autoAcceptMarriage(proposal) {
-        // Simple AI: Accept if tribute rate is reasonable (>= 5%)
-        return proposal.tributeRate >= 0.05;
-    },
+    // Dissolve a marriage (divorce or scandal). The wife returns to her
+    // family as a marriageable daughter — women never die in this game.
+    dissolve(player, reason) {
+        if (!player.wife) return false;
 
-    // Divorce
-    divorce(player, gameState) {
-        if (!player.wife) {
-            GameState.log(`${player.name} is not married!`);
-            return false;
-        }
-
-        const wifeName = player.wife.name;
-        const wifeFamily = GameState.getPlayer(player.wife.fromFamily);
+        const wife = player.wife;
+        const wifeFamily = GameState.getPlayer(wife.fromFamily);
 
         player.wife = null;
         player.tributeRates.toWife = 0;
 
-        // Add unmarried penalty
-        player.effects.push({
-            type: 'unmarried_penalty',
-            value: true,
-            duration: 99, // Until remarriage
-            name: 'Divorced - Unmarried Penalty'
-        });
+        if (wifeFamily) {
+            wifeFamily.children.push({
+                name: wife.name,
+                age: 20,
+                gender: 'female',
+                traits: wife.traits
+            });
+            GameState.log(`${wife.name} returns to the ${wifeFamily.name} household.`);
+        }
 
-        GameState.log(`${player.name} divorced ${wifeName} of ${wifeFamily.name}! Unmarried penalties apply.`);
-
+        if (reason === 'divorce') {
+            GameState.log(`The ${player.name} paterfamilias divorces ${wife.name}. The tribute tie to the ${wifeFamily ? wifeFamily.name : '?'} is severed.`);
+        }
         return true;
     },
 
-    // Remarriage (remove unmarried penalty once married)
-    removeUnmarriedPenalty(player) {
-        player.effects = player.effects.filter(e => e.type !== 'unmarried_penalty');
-    },
-
-    // Get marriage status summary
-    getMarriageStatus(player) {
+    // Voluntary divorce: costly, but frees you to re-negotiate the web
+    divorce(player, gameState) {
         if (!player.wife) {
-            return {
-                married: false,
-                hasUnmarriedPenalty: player.effects.some(e => e.type === 'unmarried_penalty')
-            };
+            GameState.log(`The ${player.name} paterfamilias is not married.`);
+            return false;
+        }
+        const cost = GameConfig.divorceCost;
+        if (player.gold < cost.gold) {
+            GameState.log(`A divorce requires ${cost.gold} gold for the settlement.`);
+            return false;
         }
 
+        player.gold -= cost.gold;
+        player.auctoritas = Math.max(0, player.auctoritas - cost.auctoritas);
+        player.popularSupport = Math.max(0, player.popularSupport - cost.popularSupport);
+
+        this.dissolve(player, 'divorce');
+        GameState.log(`Rome mutters at the scandal: -${cost.auctoritas} Auctoritas, -${cost.popularSupport} Support.`);
+        return true;
+    },
+
+    getMarriageStatus(player) {
+        if (!player.wife) {
+            return { married: false };
+        }
         return {
             married: true,
             wife: player.wife,
             tributeRate: player.tributeRates.toWife
         };
-    },
-
-    // Calculate marriage desirability score
-    calculateDesirability(player) {
-        let score = 0;
-
-        // Wealth
-        score += player.gold / 10;
-
-        // Estates
-        score += player.estates.length * 2;
-
-        // Popular Support
-        score += player.popularSupport;
-
-        // Auctoritas
-        score += player.auctoritas;
-
-        return score;
-    },
-
-    // Get best marriage match (AI helper)
-    getBestMatch(player, gameState) {
-        const eligible = this.getEligibleFamilies(player, gameState);
-
-        if (eligible.length === 0) {
-            return null;
-        }
-
-        // Sort by desirability
-        eligible.sort((a, b) => {
-            const scoreA = this.calculateDesirability(a.player);
-            const scoreB = this.calculateDesirability(b.player);
-            return scoreB - scoreA;
-        });
-
-        return eligible[0];
     }
 };

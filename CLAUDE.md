@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Paterfamilias** is a browser-based hot-seat multiplayer strategy game set in Ancient Rome. 3–4 players control noble Roman families competing to establish a dynasty by producing 4 successive emperors. It runs entirely in the browser with no build step, no dependencies, and no server.
+**Paterfamilias** is a browser-based hot-seat multiplayer strategy game set in Ancient Rome. 3–4 players control noble Roman families competing to establish a dynasty by producing 4 successive emperors. The core of the design is the **web of family obligations**: every paterfamilias has a wife and a mother from two different rival families, whose traits power his household and whose families collect his tribute. It runs entirely in the browser with no build step, no dependencies, and no server.
 
 **Play it:** Open `index.html` in any modern browser.
 
@@ -12,6 +12,7 @@
 
 - **Vanilla JavaScript (ES6+)** — no frameworks, no bundler
 - **HTML5 + CSS3** — single `index.html` entry point
+- **Inline SVG** — the empire map (`js/map.js`)
 - **Zero external dependencies**
 - **localStorage** — save/load game state
 
@@ -23,174 +24,152 @@
 /
 ├── index.html                # Single HTML entry point; all game UI markup
 ├── css/
-│   └── styles.css            # All styles (~868 lines)
+│   └── styles.css            # All styles
 ├── js/
 │   ├── game-config.js        # Centralized balance constants (tune here first)
-│   ├── game-state.js         # Core state object, initialization, card/event deck management
-│   ├── player.js             # Player class: resources, traits, family, income, death
-│   ├── card.js               # 25 card definitions (5 types × 5 cards) and effects
-│   ├── event-card.js         # 20 empire-wide event cards and queue system
+│   ├── event-card.js         # 22 empire event cards; estate-sync helpers; rehydration
+│   ├── game-state.js         # Core state, decks, provinces, kinship helpers, save/load
+│   ├── player.js             # Family: traits engine, aging/death, generational succession
+│   ├── card.js               # 25 card definitions (×2 copies each) and effects
+│   ├── map.js                # SVG map of the Mediterranean (RomanMap)
+│   ├── actions.js            # Playable actions; income & tribute flow; end-turn upkeep
 │   ├── succession.js         # Imperial succession, dynasty tracking, coup logic
-│   ├── marriage.js           # Marriage proposals, tributes, divorce
-│   ├── actions.js            # All playable actions (military, economic, political, imperial)
-│   ├── ui.js                 # UI rendering, modal system, event handlers
+│   ├── marriage.js           # Marriage negotiation, dowry, tribute rates, divorce
+│   ├── ui.js                 # UI rendering, modal system, hot-seat dialogs
 │   └── main.js               # DOMContentLoaded init, keyboard shortcuts, auto-save
 ├── README.md                 # Player-facing how-to-play guide
-└── roman_dynasty_game_design.md  # Full design document (authoritative reference)
+└── roman_dynasty_game_design.md  # Original design document (historical reference;
+                                  # the implementation has since evolved — code + this file win)
 ```
 
-Scripts are loaded in dependency order via `<script>` tags in `index.html`. There is no module system.
+Scripts are loaded in dependency order via `<script>` tags in `index.html`:
+`game-config → event-card → game-state → player → card → map → actions → succession → marriage → ui → main`.
+There is no module system; each file exposes a single global `const` (e.g. `GameState`, `Player`, `Actions`, `UI`, `RomanMap`).
 
 ---
 
 ## Architecture
 
-### Global State Pattern
-
-All modules are plain objects attached to `window`. Load order matters:
-
-```
-game-config.js  →  game-state.js  →  player.js  →  card.js  →  event-card.js
-→  succession.js  →  marriage.js  →  actions.js  →  ui.js  →  main.js
-```
-
-Each module exposes a single `const` (e.g., `GameState`, `Player`, `Actions`, `UI`) accessible globally.
-
 ### Data Flow
 
 ```
-main.js (init)
-  → GameState.init()         # creates players, provinces, decks
+main.js (startGame)
+  → GameState.init()         # players, wives/mothers, children, provinces, decks
   → UI.init()                # binds DOM events, first render
   → UI.startTurn()           # income phase for current player
-      → Actions.processIncome()
-      → UI.render()
+      → Actions.processIncome()   # estates → tax → tributes → player
+      → UI.render(); UI.showTurnBanner()   # hot-seat handoff
 
-UI.handleEndTurn()           # end of each player's turn
-  → Actions.drawCards()
-  → Actions.endTurn()        # age family, death check, military decay
+UI.handleEndTurn()
+  → Actions.drawCards(player, 2)      # capped at maxHandSize (8)
+  → Actions.endTurn()                 # aging (+extra for emperor/poison), death check,
+                                      # births, unmarried penalty, per-round empire upkeep
   → Player.resetTurnFlags()
-  → GameState.nextPlayer()   # advances index; calls nextTurn() when round completes
-  → UI.startTurn()           # begins next player's turn
+  → GameState.nextPlayer()            # calls nextTurn() when the round completes
+  → UI.startTurn()
 ```
 
 ### Turn Structure
 
-Each player's turn follows these phases (enforced by flags on the player object):
-
 | Phase | Flag | Notes |
 |-------|------|-------|
-| Income | (automatic at turn start) | Estate income → accumulated → distributed when threshold met |
-| Core Action | `player.actionTaken` | One of: military contribution, economic development, political maneuvering, marriage |
-| Card Play | `player.cardPlayed` | Play one card from hand |
-| Card Discard | `player.cardDiscarded` | Discard one card (enforced before end-turn) |
-| Draw | (automatic at end-turn) | Draw 2 cards |
-| Imperial | (Emperor only) | Set tax, launch campaign, distribute estates, influence counter |
+| Income | (automatic at turn start) | Estate income → Emperor's tax → mother tribute → wife tribute → player keeps rest. Tributes pay **at least 1 gold** when owed. |
+| Core Action | `player.actionTaken` | One of: military contribution, economic development, political maneuvering, marriage negotiation (consumed on a **concluded** marriage), plot coup |
+| Free actions | — | Declare Emperor (Republic, threshold met), Divorce, Read the Omens |
+| Card Play | `player.cardPlayed` | Play up to 1 card. Discarding is **optional** (no mandatory discard). |
+| Imperial | (Emperor only) | Tax rate, campaign, estate distribution, counter influence |
+| End | (automatic) | Draw 2, age, death check, per-round military decay/revolts/tax penalty |
 
 ---
 
 ## Key Game Concepts
 
-### Resources
-- **Gold** — primary currency; accumulated from estates, then distributed (taxes → mother tribute → wife tribute → player)
-- **Popular Support (S)** — needed for Popularity-based succession (early game / Republic)
-- **Auctoritas (V)** — needed for Virtue-based succession (late game / Empire)
+### The Family Web (the design's center of gravity)
+- Each player's **wife** and **mother** come from two different rival families; their families receive tribute (% of gross income) every turn.
+- **Generational turnover**: on a pater's death, the eldest son ≥16 succeeds; the **widow becomes the new mother** (her family tie and tribute rate carry over), and the heir starts **unmarried**. No eligible heir → a distant relative takes over and **all ties are severed** (succession crisis penalties).
+- **Marriage negotiation** is a real two-player dialog (hot-seat): dowry (based on bride's traits) + tribute rate (5–25%) with an accept/counter/refuse flow. `Marriage.concludeMarriage` finalizes.
+- **Betrothal Pact card**: promises a daughter to another family's *next* pater; auto-marries at succession.
+- **Kinship** (`GameState.areKin`, `GameState.getKinFamilyIds`): kin are protected from Raid/Denounce/Blackmail/Rumors; Assassinate/Poison against kin cost impiety; kin of the Emperor gain +1 Support/turn, add +10 each to his coup defense, and lose Support when he falls violently.
 
-### The Counter (1–100)
-- Starts at 1 (pure Popularity) and increments +1 per turn, capped at 100 (pure Virtue)
-- Controls succession weights: `popularity_weight = (100 - counter) / 100`, `virtue_weight = counter / 100`
-- Emperor can spend 15g to shift it ±3
+### Female traits (must all have mechanical effect)
+Implemented in `Player.femaleTraitCount(player, trait)` (counts wife + mother; doubled by Divine Favor):
+Financial Acumen (+20% income), Political Savvy (+1 V/turn), Beloved by People (+1 S/turn), Fertile (+15% births), Pious (religious/omen discounts), Influential (+10 coup defense, −15% assassination), Scheming (intrigue discounts, +15 coup attack, +15% assassination).
 
-### Succession
-- Triggered by emperor death or successful coup
-- Candidates must meet `checkImperialThreshold(auctoritas)` = `auctoritas >= (counter × 0.5)`
-- Winner is highest `(popularSupport × popularity_weight) + (auctoritas × virtue_weight)`
-- Dynasty counter tracks consecutive emperors from the same family
-- **Win condition:** 4 successive emperors from one family
+### Age & Death
+- Paters have an **age** (start 38–46); death probability per turn from `GameConfig.deathCurve` (2% under 50 → 60% at 80+).
+- **Emperors age +1 extra per turn**; Poison adds +2 years once.
 
-### Family Web
-- Each player has a **wife** (from another family) and **mother** (from yet another family)
-- These create tribute obligations: when income is distributed, a % goes to wife's and mother's families
-- Unmarried penalty: −1 Popular Support per turn
+### The Counter (1–100) & Succession
+- +1/turn; weights: `popularity = (100-counter)/100`, `virtue = counter/100`.
+- **Imperial threshold** = `max(30, counter × 0.5)` (`GameState.getImperialThreshold`). Becoming the first Emperor is a **declaration** (free action); at counter ≥40 the Senate acclaims the strongest candidate automatically.
+- Succession on emperor death: reigning dynasty's family scores ×1.25 legitimacy; no eligible candidate → **interregnum** (Republic restored, everyone suffers).
+- **Win:** 4 successive emperors from one family.
 
-### Event Cards
-- Separate 20-card deck; one event executes every full round cycle
-- 5 upcoming cards visible face-down in the event queue
-- "Read the Omens" (5g) reveals the next 3 cards
+### Empire destabilization (the second axis of tension)
+- Legions decay per round: `1 + provincesHeld/3`; each province needs 10 strength.
+- Every succession −5 military, every coup attempt −10, emperor assassination −10, interregnum −15.
+- Below requirement → newest province **revolts** and all estates there are lost by their owners.
+- Conquest follows the **historical order** of `GameConfig.provinces` (Sicilia 241 BC → Dacia AD 106).
+
+### Coups
+- Core action, cost `25 + 10×(dynastyCount−1)` (`Succession.getCoupCost`). Odds are **shown to the plotter** (`Succession.getCoupOdds`). Failure executes the plotter's pater; success kills the Emperor and runs the normal succession formula (the plotter is not guaranteed the throne).
 
 ---
 
 ## Configuration (game-config.js)
 
-All balance values are centralized in `GameConfig`. **Always modify balance here, never hardcode in logic files.**
-
-Key tunable values:
-```js
-GameConfig.maxPaterfamiliasTurns   // 10 — turns before forced succession
-GameConfig.dynastyWinThreshold     // 4 — successive emperors to win
-GameConfig.counterIncrementPerTurn // 1 — how fast game shifts to virtue
-GameConfig.initialMilitaryStrength // 100
-GameConfig.militaryDecayPerTurn    // 1 — per round
-GameConfig.startingGold            // 10
-GameConfig.eventCardDrawFrequency  // 1 — event every N full rounds
-```
+All balance values are centralized in `GameConfig`. **Always modify balance here, never hardcode in logic files.** Notable knobs: `imperialMinAuctoritas`, `deathCurve`, `coup.*`, `tributeRateMin/Max`, `kinEmperorSupportPerTurn`, `militaryDecayPerProvincesHeld`, `dynastyWinThreshold`.
 
 ---
 
 ## Development Guidelines
 
-### No Build System
-- Edit files directly and refresh the browser
-- No compilation, bundling, transpilation, or minification
-- No package.json, no npm scripts
-
-### No Test Framework
-- Testing is manual via browser devtools
-- Use `console.log` and the game's own log system for debugging
-
-### Making Changes
-1. Edit the relevant JS or CSS file
-2. Open/refresh `index.html` in browser
-3. Use `Ctrl+S` / `Ctrl+L` in-game to save/load state during testing
+### No Build System / No Test Framework
+- Edit files, refresh browser. Use `Ctrl+S`/`Ctrl+L` in-game to save/load during testing.
+- A headless simulation harness pattern exists for balance work: load the non-UI modules into a `node vm` context with a stubbed `localStorage`, run bot-policy games, and check completion rates/lengths. (See PR history for an example harness.)
 
 ### Code Conventions
-- Module pattern: each file exports a single `const` object with methods
-- No classes (`class` keyword), no ES modules (`import`/`export`)
-- Balance numbers always come from `GameConfig`, not hardcoded
-- Game log messages via `GameState.log(message)`, not `console.log`
-- Player resource mutations go through `Player.addResources()` / `Player.payCost()` where possible (they enforce non-negative bounds)
+- Module pattern: each file exports a single `const` object with methods. No `class`, no ES modules.
+- Balance numbers come from `GameConfig`, never hardcoded.
+- Log via `GameState.log(message)`, not `console.log`.
+- Resource mutations through `Player.addResources()` / `Player.payCost()` where possible (they clamp at 0).
+- **Card effects return `false` to refuse an illegal play** (cost is refunded, card stays in hand).
+- **Estate moves must keep `player.estates` and `province.estates[].ownerId` in sync** — use the patterns in `event-card.js` (`eventAwardEstate`/`eventSeizeEstate`).
+
+### Save/Load Rehydration (important)
+Cards and event cards carry functions that JSON.stringify drops. `GameState.load()` calls `GameState.rehydrate()`, which rebuilds them via `CardDefinitions.rehydrate(card)` (matched by `defId`) and `rehydrateEventCard(card)` (matched by `id`). **Any new card/event must have a stable `defId`/`id` and be registered in its definitions list**, or saves will break.
 
 ### Adding a New Card
-1. Add the card definition to `CardDefinitions.getAllCards()` in `card.js`
-2. Add the effect function to `CardDefinitions` in `card.js`
-3. If the card type needs targeting, ensure it's included in the `needsTarget` list in `ui.js:handlePlayCard`
+1. Add an `add(defId, name, type, cost, description, effect, needsTarget)` line in `CardDefinitions.getDefinitions()` in `card.js`
+2. Add the effect function to `CardDefinitions` (return `false` for illegal plays)
+3. Targeting is driven by the `needsTarget` flag — no UI list to update
 
 ### Adding a New Event Card
-1. Add the event object to the array returned by `createEventDeck()` in `event-card.js`
-2. Follow the `{ name, description, type, execute(state) }` shape
-3. `execute` receives the full `GameState.state` object
+1. Add the event object (with unique `id`) to `EventCardDefinitions` in `event-card.js`
+2. Follow the `{ id, name, description, type, execute(state) }` shape; `execute` receives `GameState.state`
 
 ### Adding a New Action
-1. Add the action function to `Actions` in `actions.js`
-2. Add the button to `index.html` with `data-action="your-action-name"`
-3. Handle it in `UI.handleAction()` or `UI.handleImperialAction()` in `ui.js`
+1. Add the function to `Actions` in `actions.js`
+2. Add the button to `index.html` (`data-action="..."` for core actions)
+3. Handle it in `UI.handleAction()` / `UI.handleImperialAction()` in `ui.js`
+
+### Touching the Map
+`js/map.js` holds hand-drawn SVG polygon paths keyed by **province name** (must match `GameConfig.provinces[].name`), plus `labelPositions` and `shortNames`. New provinces need a path + label entry.
 
 ---
 
 ## Modal System
 
-There are two distinct modal mechanisms — do not confuse them:
+Two distinct mechanisms — do not confuse them:
 
-| Element | Used for | How to open | How to close |
-|---------|----------|-------------|--------------|
-| `#modal-overlay` | In-game dialogs (tax, estates, targets, omens) | `UI.showModal(html)` | `UI.closeModal()` |
-| `#setup-modal` (class `modal`) | Initial player setup | `setupModal.style.display = 'flex'` | `setupModal.style.display = 'none'` |
+| Element | Used for | Open | Close |
+|---------|----------|------|-------|
+| `#modal-overlay` | All in-game dialogs (negotiation, coup, tax, distribution, turn banner) | `UI.showModal(html)` | `UI.closeModal()` |
+| `#setup-modal` (class `modal`) | Initial player setup | `style.display = 'flex'` | `style.display = 'none'` |
 
-When checking whether any modal is open (e.g., to block keyboard shortcuts), check `#modal-overlay` explicitly:
-```js
-document.getElementById('modal-overlay').style.display !== 'flex'
-```
-Do **not** use `document.querySelector('.modal')` — that only matches `#setup-modal`.
+When checking whether a game modal is open (e.g., keyboard shortcuts), check `#modal-overlay` explicitly.
+
+Multi-step hot-seat dialogs (marriage negotiation, senate motion direction, estate distribution) keep transient state on `UI` (`UI.negotiation`, `UI.distribution`) and re-render the modal between steps.
 
 ---
 
@@ -198,7 +177,7 @@ Do **not** use `document.querySelector('.modal')` — that only matches `#setup-
 
 | Key | Action |
 |-----|--------|
-| `Enter` | End turn (when no modal is open and end-turn button is enabled) |
+| `Enter` | End turn (no modal open, not typing in an input) |
 | `Ctrl+S` | Save game |
 | `Ctrl+L` | Load game |
 
@@ -206,19 +185,15 @@ Do **not** use `document.querySelector('.modal')` — that only matches `#setup-
 
 ## Save / Load
 
-- `GameState.save()` serializes full state to `localStorage` key `romanDynastyGame`
-- `GameState.load()` deserializes and replaces `GameState.state`
-- Auto-save runs every 30 seconds (only when not in `setup` phase)
-- After loading, call `UI.render()` to refresh display
+- `GameState.save()` → localStorage key `romanDynastyGame`; `GameState.load()` restores **and rehydrates** card/event functions.
+- Auto-save every 30 seconds (not during `setup`/`game_over`).
 
 ---
 
 ## Known Limitations / Future Work
 
 - No AI players — purely hot-seat multiplayer
-- Marriage negotiation is auto-accepted at 5% tribute (no real negotiation UI)
-- Distribute Estates dialog is simplified (auto-distributes evenly)
-- Political Alliance, Senate Motion, Oracle's Warning, and some other cards have simplified or stub effects
-- No network play
-- No undo system
-- Children share a name pool that can produce duplicate names (low probability edge case)
+- Marriage negotiation supports one counter-offer round (no free-form haggling)
+- Trade Monopoly auto-picks the richest province (no picker UI)
+- No network play, no undo system
+- Name pool can exhaust in very long games (falls back to epithets like "the Younger")

@@ -206,25 +206,13 @@ body {
 }
 
 #family-display {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     margin-bottom: 15px;
 }
 
-#mother-info {
-    grid-column: 2;
-    grid-row: 1;
-    padding: 10px;
-    background-color: rgba(100, 149, 237, 0.3);
-    border: 2px solid #6495ED;
-    border-radius: 5px;
-}
-
 #paterfamilias-info {
-    grid-column: 2;
-    grid-row: 2;
     padding: 10px;
     background-color: rgba(184, 134, 11, 0.3);
     border: 2px solid #B8860B;
@@ -232,21 +220,34 @@ body {
 }
 
 #wife-info {
-    grid-column: 3;
-    grid-row: 2;
     padding: 10px;
     background-color: rgba(219, 112, 147, 0.3);
     border: 2px solid #DB7093;
     border-radius: 5px;
 }
 
+#mother-info {
+    padding: 10px;
+    background-color: rgba(100, 149, 237, 0.3);
+    border: 2px solid #6495ED;
+    border-radius: 5px;
+}
+
 #children-info {
-    grid-column: 1 / 4;
-    grid-row: 3;
     padding: 10px;
     background-color: rgba(144, 238, 144, 0.2);
     border: 2px solid #90EE90;
     border-radius: 5px;
+}
+
+#children-info ul {
+    list-style: none;
+    margin-top: 5px;
+}
+
+#children-info li {
+    padding: 3px 0;
+    border-bottom: 1px dotted rgba(144, 238, 144, 0.3);
 }
 
 #dynasty-progress {
@@ -865,4 +866,443 @@ section h2 {
     border-radius: 3px;
     font-size: 0.85em;
     font-weight: bold;
+}
+
+/* ==========================================================================
+   Overhaul additions: map, family web, traits, coup, negotiation, banners
+   ========================================================================== */
+
+/* Trait badges with tooltips */
+.trait-badge {
+    display: inline-block;
+    background-color: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    color: #ffd700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.75em;
+    margin: 1px 2px 1px 0;
+    cursor: help;
+    white-space: nowrap;
+}
+
+.family-ref {
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+.death-risk {
+    font-size: 0.8em;
+    color: #bbb;
+    cursor: help;
+}
+
+.heir-tag, .bride-tag, .kin-tag, .unmarried-tag {
+    display: inline-block;
+    font-size: 0.7em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.heir-tag { background-color: #B8860B; color: #fff; }
+.bride-tag { background-color: #DB7093; color: #fff; }
+.kin-tag { background-color: #2980b9; color: #fff; font-weight: bold; }
+.unmarried-tag { background-color: #8b0000; color: #ffd700; }
+
+.betrothal-note {
+    margin-top: 6px;
+    font-size: 0.85em;
+    color: #DB7093;
+    font-style: italic;
+}
+
+.good { color: #90EE90; }
+.bad { color: #FF6B6B; }
+
+.phase-hint {
+    font-size: 0.6em;
+    color: #bbb;
+    font-weight: normal;
+}
+
+/* Players top bar additions */
+.player-card {
+    border-top: 4px solid transparent;
+}
+
+.player-card-ties {
+    font-size: 0.75em;
+    margin-top: 4px;
+}
+
+.family-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Obligations web panel */
+#obligations-panel, #effects-panel {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+.obligation-group ul {
+    list-style: none;
+    margin: 4px 0 8px 0;
+    font-size: 0.85em;
+}
+
+.obligation-group li {
+    padding: 2px 0;
+    border-bottom: 1px dotted rgba(139, 0, 0, 0.4);
+}
+
+.kin-note {
+    margin-top: 8px;
+    padding: 6px;
+    background-color: rgba(147, 112, 219, 0.2);
+    border-left: 3px solid #9370DB;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.effect-entry {
+    font-size: 0.85em;
+    padding: 2px 0;
+    border-bottom: 1px dotted rgba(139, 0, 0, 0.4);
+}
+
+/* Special action buttons */
+.special-btn {
+    background-color: #4b0082 !important;
+}
+
+.special-btn:hover:not(:disabled) {
+    background-color: #6a0dad !important;
+}
+
+#free-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.declare-btn {
+    background: linear-gradient(135deg, #9370DB, #4b0082);
+    color: #ffd700;
+    border: 2px solid #ffd700;
+    padding: 12px 24px;
+    font-size: 1.1em;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.9); }
+}
+
+.minor-btn {
+    background-color: #555;
+    color: #f4e8d0;
+    border: 1px solid #999;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+}
+
+.minor-btn:hover { background-color: #666; }
+
+.danger-btn {
+    background-color: #8b0000 !important;
+    border-color: #FF6B6B !important;
+}
+
+/* Coup dialog */
+.coup-odds {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+.coup-chance {
+    margin-top: 8px;
+    font-size: 1.2em;
+    color: #ffd700;
+}
+
+.coup-warning {
+    color: #FF6B6B;
+    font-size: 0.9em;
+    margin: 8px 0;
+}
+
+/* Turn banner (hot-seat handoff) */
+.turn-banner {
+    text-align: center;
+    padding: 20px;
+    border: 3px solid;
+    border-radius: 8px;
+}
+
+.turn-banner h2 {
+    font-size: 2em;
+}
+
+.handoff-note {
+    background-color: rgba(255, 215, 0, 0.15);
+    border: 1px dashed #ffd700;
+    padding: 8px;
+    border-radius: 5px;
+    text-align: center;
+    margin-bottom: 12px;
+    font-size: 0.9em;
+}
+
+/* Target and bride buttons */
+.target-btn, .bride-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin: 5px 0;
+}
+
+/* Estate distribution dialog */
+.dist-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px dotted rgba(139, 0, 0, 0.4);
+}
+
+.dist-name {
+    flex: 1;
+}
+
+.dist-count {
+    min-width: 24px;
+    text-align: center;
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.dist-row button {
+    padding: 2px 12px !important;
+    margin: 0 !important;
+}
+
+/* Military bar */
+.military-bar-track {
+    position: relative;
+    height: 14px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 7px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.military-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, #556B2F, #90EE90);
+    border-radius: 7px;
+    transition: width 0.5s ease;
+}
+
+.military-bar-fill.military-bar-low {
+    background: linear-gradient(to right, #8b0000, #FF6B6B);
+}
+
+.military-bar-required {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background-color: #ffd700;
+}
+
+.next-conquest {
+    margin-top: 6px;
+    font-size: 0.9em;
+}
+
+.military-hint {
+    margin-top: 8px;
+    color: #aaa;
+    line-height: 1.3;
+}
+
+/* Empire map */
+#empire-map-container {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.empire-map {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.map-sea {
+    fill: #16324f;
+}
+
+.map-barbarian {
+    fill: #3a3a33;
+    stroke: #2c2c26;
+    stroke-width: 1;
+}
+
+.map-province {
+    stroke: #1a1a12;
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: filter 0.2s ease;
+}
+
+.map-province:hover {
+    filter: brightness(1.35);
+}
+
+.map-conquered {
+    fill: #8b2f2f;
+}
+
+.map-unconquered {
+    fill: #55503f;
+    stroke-dasharray: 4 3;
+    opacity: 0.85;
+}
+
+.map-next-target {
+    stroke: #ffd700;
+    stroke-width: 2.5;
+    stroke-dasharray: none;
+    animation: target-pulse 2s infinite;
+}
+
+@keyframes target-pulse {
+    0%, 100% { fill-opacity: 0.85; }
+    50% { fill-opacity: 1; filter: brightness(1.25); }
+}
+
+.map-selected {
+    stroke: #fff;
+    stroke-width: 2.5;
+}
+
+.map-label {
+    fill: #d8cfae;
+    font-size: 13px;
+    font-family: 'Georgia', serif;
+    text-anchor: middle;
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, 0.7);
+    stroke-width: 2.5px;
+}
+
+.map-label-conquered {
+    fill: #ffd700;
+}
+
+.map-owner-dot {
+    stroke: rgba(0, 0, 0, 0.6);
+    stroke-width: 1;
+    pointer-events: none;
+}
+
+.map-owner-count {
+    fill: #fff;
+    font-size: 8px;
+    font-weight: bold;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+#map-legend {
+    font-size: 0.75em;
+    margin-bottom: 8px;
+    line-height: 1.8;
+}
+
+.legend-item {
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+.legend-unconquered {
+    background-color: #55503f;
+    border: 1px dashed #999;
+}
+
+.legend-next {
+    background-color: #55503f;
+    border: 1px solid #ffd700;
+}
+
+#province-detail {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 0.85em;
+    min-height: 40px;
+}
+
+#province-detail ul {
+    list-style: none;
+    margin-top: 4px;
+}
+
+/* Setup blurb */
+.setup-blurb {
+    font-size: 0.95em;
+    font-style: italic;
+    color: #d8cfae;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+/* Wider map column */
+#game-main {
+    grid-template-columns: 320px 1fr 380px;
+}
+
+@media (max-width: 1300px) {
+    #game-main {
+        grid-template-columns: 280px 1fr 320px;
+    }
+}
+
+@media (max-width: 1000px) {
+    #game-main {
+        grid-template-columns: 1fr;
+    }
 }
